@@ -1,7 +1,10 @@
 'use client';
 
-import { useId, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
+import { CitationsProvider } from '@/components/inspector/CitationsContext';
+import { RulesPanel } from '@/components/inspector/RulesPanel';
+import { StepInspector } from '@/components/inspector/StepInspector';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
 import { ProcessChip } from '@/components/shell/ProcessChip';
 import { PROCESS_PALETTE, processPatternId } from '@/components/shell/processPalette';
@@ -12,9 +15,15 @@ import { PlaybackBar, phaseIndexAt } from '@/components/timeline/PlaybackBar';
 import { PhaseStepper } from '@/components/timeline/PhaseStepper';
 import { stageMoment, StepCaption } from '@/components/timeline/StepCaption';
 import { formatTimecode, unitIndex } from '@/components/timeline/time';
+import { useProgress } from '@/components/state/useProgress';
+import { useShareState } from '@/components/state/useShareState';
+import { Button } from '@/components/timeline/ui/Button';
+import { citations } from '@/core/citations';
 import { UNIT_MS, type RunUnit } from '@/core/events/builder';
 import { cn } from '@/lib/cn';
 
+import { BlocksDemo } from './BlocksDemo';
+import { DEMO_RULES } from './fakeBlocks';
 import { buildFakeRun, DEMO_PROCESSES } from './fakeRun';
 
 function UnitPicker({
@@ -74,6 +83,46 @@ function UnitPicker({
         </tbody>
       </table>
     </fieldset>
+  );
+}
+
+function ProgressCard({
+  done,
+  saved,
+  onComplete,
+  onSave,
+  onReset,
+}: {
+  done: boolean;
+  saved: number;
+  onComplete: () => void;
+  onSave: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <section
+      aria-labelledby="progress-heading"
+      className="border-border bg-surface-raised flex flex-col gap-2 rounded-lg border p-4"
+    >
+      <h2 id="progress-heading" className="text-small text-fg-muted font-semibold">
+        Progress (osv:v1)
+      </h2>
+      <p className="text-small">
+        {done ? 'Demo marked complete.' : 'Demo not complete.'} {saved} saved{' '}
+        {saved === 1 ? 'workload' : 'workloads'}.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" size="sm" onClick={onComplete} disabled={done}>
+          Mark complete
+        </Button>
+        <Button variant="secondary" size="sm" onClick={onSave}>
+          Save workload
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onReset}>
+          Reset
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -138,78 +187,108 @@ export function DemoClient() {
   const count = run.events.length;
   const current = run.events[Math.min(index, count - 1)];
   const reached = moment === 'done' ? count - 1 : Math.min(index, count - 1);
+  // The Gantt cursor: ticks finished, the same number as the timeline's "t = ".
+  const cursor = moment === 'done' ? count : Math.min(index, count);
+
+  // The step lives in the URL (`?s=`), through the CPU scheduling branch of the codec.
+  const share = useShareState('sched');
+  const { setState: setShare, linked } = share;
+  const seeked = useRef(false);
+  useEffect(() => {
+    if (linked === null || seeked.current) return;
+    seeked.current = true;
+    if (linked.step > 0) {
+      store.getState().seek(Math.min(linked.step, count - 1) * UNIT_MS[unit]);
+    }
+  }, [linked, store, count, unit]);
+  useEffect(() => {
+    if (!seeked.current) return;
+    setShare((s) => (s.step === reached ? s : { ...s, step: reached }));
+  }, [reached, setShare]);
+
+  const progress = useProgress();
 
   return (
-    <ModuleLayout
-      title="Component demo"
-      intro="The shell and the timeline, driven by a fake run. Everything here works from the keyboard."
-      mode={mode}
-      onModeChange={setMode}
-      inputs={<UnitPicker unit={unit} onChange={setUnit} />}
-      inspector={
-        <div className="flex flex-col gap-4">
-          <div className="border-border bg-surface-raised rounded-lg border p-4">
-            <h2 className="text-small text-fg-muted font-semibold">This {unit}</h2>
-            <p className="text-fg mt-1">{current?.label}</p>
-            <p className="text-fg-muted text-caption mt-2 font-mono">
-              {formatTimecode(index * UNIT_MS[unit], run.durationMs, unit)}
-            </p>
-          </div>
-          <div>
-            <h2 className="text-small text-fg-muted mb-2 font-semibold">Phases</h2>
-            <PhaseStepper
-              phases={run.phases}
-              currentIndex={phaseIndex}
-              onSeek={(time) => store.getState().seek(time)}
-              unit={unit}
+    <CitationsProvider citations={citations}>
+      <ModuleLayout
+        title="Component demo"
+        intro="The shell and the timeline, driven by a fake run. Everything here works from the keyboard."
+        mode={mode}
+        onModeChange={setMode}
+        inputs={<UnitPicker unit={unit} onChange={setUnit} />}
+        inspector={
+          <div className="flex flex-col gap-4">
+            <StepInspector heading={`This ${unit}`} event={current}>
+              <p className="text-fg-muted text-caption font-mono">
+                {formatTimecode(index * UNIT_MS[unit], run.durationMs, unit)}
+              </p>
+            </StepInspector>
+            <RulesPanel rules={DEMO_RULES} />
+            <ProgressCard
+              done={progress.isComplete('demo')}
+              saved={progress.savedFor('demo').length}
+              onComplete={() => progress.markComplete('demo')}
+              onSave={() => progress.saveInput('demo', DEMO_PROCESSES)}
+              onReset={progress.reset}
             />
+            <div>
+              <h2 className="text-small text-fg-muted mb-2 font-semibold">Phases</h2>
+              <PhaseStepper
+                phases={run.phases}
+                currentIndex={phaseIndex}
+                onSeek={(time) => store.getState().seek(time)}
+                unit={unit}
+              />
+            </div>
           </div>
-        </div>
-      }
-      timeline={<PlaybackBar store={store} phases={run.phases} unit={unit} />}
-    >
-      <p className="text-fg-muted text-small mb-3">
-        Mode: {mode === 'walkthrough' ? 'Walkthrough' : 'Free play'} (the switch is wired;
-        modules decide what it changes).
-      </p>
-      <StepCaption
-        phases={run.phases}
-        currentIndex={phaseIndex}
-        moment={moment}
-        question="Three processes arrive one tick apart. Who runs first under FCFS?"
-        className="border-border bg-surface-raised min-h-28 rounded-lg border p-4"
-      />
-
-      <ol
-        aria-label={`CPU by ${unit}`}
-        className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-2"
+        }
+        timeline={<PlaybackBar store={store} phases={run.phases} unit={unit} />}
       >
-        {run.events.map((event, i) => {
-          const done = i <= reached;
-          return (
-            <li
-              key={event.id}
-              aria-current={i === reached && moment !== 'done' ? 'step' : undefined}
-              className={cn(
-                'border-border flex flex-col items-center gap-1 rounded-md border p-2',
-                i === reached && moment !== 'done' && 'border-accent border-2',
-                !done && 'state-dim',
-              )}
-            >
-              <span className="text-caption text-fg-muted font-mono">
-                {unit === 'tick' ? `t = ${i}` : `step ${i + 1}`}
-              </span>
-              {done && event.pid !== null ? (
-                <ProcessChip pid={event.pid} />
-              ) : (
-                <span className="text-small">not yet</span>
-              )}
-            </li>
-          );
-        })}
-      </ol>
+        <p className="text-fg-muted text-small mb-3">
+          Mode: {mode === 'walkthrough' ? 'Walkthrough' : 'Free play'} (the switch is
+          wired; modules decide what it changes).
+        </p>
+        <StepCaption
+          phases={run.phases}
+          currentIndex={phaseIndex}
+          moment={moment}
+          question="Three processes arrive one tick apart. Who runs first under FCFS?"
+          className="border-border bg-surface-raised min-h-28 rounded-lg border p-4"
+        />
 
-      <Palette />
-    </ModuleLayout>
+        <ol
+          aria-label={`CPU by ${unit}`}
+          className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(4.5rem,1fr))] gap-2"
+        >
+          {run.events.map((event, i) => {
+            const done = i <= reached;
+            return (
+              <li
+                key={event.id}
+                aria-current={i === reached && moment !== 'done' ? 'step' : undefined}
+                className={cn(
+                  'border-border flex flex-col items-center gap-1 rounded-md border p-2',
+                  i === reached && moment !== 'done' && 'border-accent border-2',
+                  !done && 'state-dim',
+                )}
+              >
+                <span className="text-caption text-fg-muted font-mono">
+                  {unit === 'tick' ? `t = ${i}` : `step ${i + 1}`}
+                </span>
+                {done && event.pid !== null ? (
+                  <ProcessChip pid={event.pid} />
+                ) : (
+                  <span className="text-small">not yet</span>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+
+        <BlocksDemo event={current} reached={reached} cursor={cursor} />
+
+        <Palette />
+      </ModuleLayout>
+    </CitationsProvider>
   );
 }
