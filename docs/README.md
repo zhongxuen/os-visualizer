@@ -7,11 +7,11 @@ Five new projects, each planned in its own file:
 
 | # | Plan | Fills | Size | Suggested order |
 |---|---|---|---|---|
-| 1 | [forensics-game-plan.md](forensics-game-plan.md) | Autopsy, Volatility, FTK Imager are listed as skills but no project uses them | L | 1st |
-| 2 | [crypto-visualizer-plan.md](crypto-visualizer-plan.md) | Internet Visualizer's "no cryptography in the TLS layer" disclaimer | M | 2nd |
-| 3 | [os-visualizer-plan.md](os-visualizer-plan.md) | Operating Systems course | M | 3rd |
-| 4 | [compiler-visualizer-plan.md](compiler-visualizer-plan.md) | AI Code Visualizer's "does not execute your code" disclaimer | L | 4th |
-| 5 | [database-internals-visualizer-plan.md](database-internals-visualizer-plan.md) | Databases course | L | 5th |
+| 1 | `forensics-game-plan.md` (forensics-simulation repo) | Autopsy, Volatility, FTK Imager are listed as skills but no project uses them | L | 1st |
+| 2 | `crypto-visualizer-plan.md` (crypto-visualizer repo) | Internet Visualizer's "no cryptography in the TLS layer" disclaimer | M | 2nd |
+| 3 | [implementation/00-overview.md](implementation/00-overview.md) (this repo) | Operating Systems course | M | 3rd |
+| 4 | `compiler-visualizer-plan.md` (compiler-visualizer repo) | AI Code Visualizer's "does not execute your code" disclaimer | L | 4th |
+| 5 | `database-internals-visualizer-plan.md` (db-internals-visualizer repo) | Databases course | L | 5th |
 
 Why this order: the forensics game fills the most visible gap on the site. Skills that no project backs up weaken the skills section. Crypto is the smallest project and links directly to the Internet Visualizer the site already features. The other three follow the likely order of your courses and can move around to match your semester.
 
