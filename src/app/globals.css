@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+
+/*
+ * Placeholder tokens for the scaffold. Phase 03 replaces these with the real design
+ * tokens (type scale, process palette with patterns, focus ring).
+ */
+:root {
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --fg: #1c1917;
+  --fg-muted: #57534e;
+  --border: #d6d3d1;
+  --accent: #1d4ed8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0a09;
+    --surface: #1c1917;
+    --fg: #f5f5f4;
+    --fg-muted: #a8a29e;
+    --border: #44403c;
+    --accent: #93c5fd;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
