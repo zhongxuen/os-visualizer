@@ -1,0 +1,52 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+
+import { usePlayback, usePlaybackState } from '@/components/timeline/hooks/usePlayback';
+import { usePlaybackKeys } from '@/components/timeline/hooks/usePlaybackKeys';
+import { phaseIndexAt } from '@/components/timeline/PlaybackBar';
+import { stageMoment } from '@/components/timeline/StepCaption';
+import { unitCount, unitIndex } from '@/components/timeline/time';
+import { TICK_MS } from '@/core/events/builder';
+import type { ShareStateBase } from '@/core/state/schema';
+import type { SimResult } from '@/core/sim/result';
+
+/**
+ * One playback store for a tick run, the keyboard shortcuts, and the step kept in the
+ * URL. `tick` is the playhead as a whole tick: the instant whose decisions are on screen
+ * and, for a Gantt chart, the number of ticks finished. At the end it is the run length.
+ */
+export function useTickRun<S extends ShareStateBase>(
+  result: SimResult,
+  share: {
+    linked: S | null;
+    setState: (next: (current: S) => S) => void;
+  },
+) {
+  const store = usePlayback({ result });
+  usePlaybackKeys(store);
+
+  const total = unitCount(result.durationMs, 'tick');
+  const index = usePlaybackState(store, (s) => unitIndex(s.virtualTime, 'tick'));
+  const moment = usePlaybackState(store, (s) => stageMoment(s.status, s.virtualTime));
+  const phaseIndex = usePlaybackState(store, (s) =>
+    phaseIndexAt(result.phases, s.virtualTime),
+  );
+  const tick = Math.min(index, total);
+
+  // Apply the link's step once, after the linked run is in place.
+  const { linked, setState } = share;
+  const seeked = useRef(false);
+  useEffect(() => {
+    if (linked === null || seeked.current) return;
+    seeked.current = true;
+    if (linked.step > 0) store.getState().seek(Math.min(linked.step, total) * TICK_MS);
+  }, [linked, store, total]);
+
+  useEffect(() => {
+    if (!seeked.current) return;
+    setState((s) => (s.step === tick ? s : { ...s, step: tick }));
+  }, [tick, setState]);
+
+  return { store, tick, total, moment, phaseIndex };
+}

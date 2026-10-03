@@ -29,7 +29,7 @@ export const MODULES: readonly ModuleEntry[] = [
     blurb:
       'FCFS, SJF, SRTF, Priority, Round Robin and MLFQ. Watch the Gantt chart form tick by tick, with the reason for every decision.',
     number: 1,
-    status: 'planned',
+    status: 'ready',
     phase: 1,
   },
   {
@@ -39,7 +39,7 @@ export const MODULES: readonly ModuleEntry[] = [
     blurb:
       'The same workload under two to four schedulers at once, on a shared time axis, with the best metric in each row marked.',
     number: 2,
-    status: 'planned',
+    status: 'ready',
     phase: 1,
   },
   {
