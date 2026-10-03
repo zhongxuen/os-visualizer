@@ -9,7 +9,7 @@
 
 import { DEADLOCK_SHARE_STATE } from '../deadlock/state';
 import { REPLACE_SHARE_STATE } from '../replace/state';
-import { SCHED_SHARE_STATE } from '../sched/state';
+import { COMPARE_SHARE_STATE, SCHED_SHARE_STATE } from '../sched/state';
 import { VM_SHARE_STATE } from '../vm/state';
 import type { ModuleShareState } from './schema';
 
@@ -18,4 +18,5 @@ export const SHARE_STATES: readonly ModuleShareState[] = [
   VM_SHARE_STATE,
   REPLACE_SHARE_STATE,
   DEADLOCK_SHARE_STATE,
+  COMPARE_SHARE_STATE,
 ];

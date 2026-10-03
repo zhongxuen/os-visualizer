@@ -1,4 +1,168 @@
 import type { Citation } from '../citations/types';
 
-/** Citations for the CPU scheduling module. Filled in by the sched core. */
-export const schedCitations: Citation[] = [];
+const OSTEP_SCHED = 'https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched.pdf';
+const OSTEP_MLFQ = 'https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched-mlfq.pdf';
+
+/**
+ * Citations for the CPU scheduling module: OSTEP v1.10 ch. 7 (Scheduling: Introduction)
+ * and ch. 8 (MLFQ), and Silberschatz *Operating System Concepts* 10th ed. ch. 5.
+ */
+export const schedCitations: Citation[] = [
+  {
+    id: 'ostep.7',
+    source: 'OSTEP',
+    chapter: 7,
+    title: 'Scheduling: Introduction',
+    url: OSTEP_SCHED,
+  },
+  {
+    id: 'ostep.7.2',
+    source: 'OSTEP',
+    chapter: 7,
+    section: '7.2',
+    title: 'Scheduling Metrics',
+    url: OSTEP_SCHED,
+  },
+  {
+    id: 'ostep.7.3',
+    source: 'OSTEP',
+    chapter: 7,
+    section: '7.3',
+    title: 'First In, First Out (FIFO)',
+    url: OSTEP_SCHED,
+  },
+  {
+    id: 'ostep.7.4',
+    source: 'OSTEP',
+    chapter: 7,
+    section: '7.4',
+    title: 'Shortest Job First (SJF)',
+    url: OSTEP_SCHED,
+  },
+  {
+    id: 'ostep.7.5',
+    source: 'OSTEP',
+    chapter: 7,
+    section: '7.5',
+    title: 'Shortest Time-to-Completion First (STCF)',
+    url: OSTEP_SCHED,
+  },
+  {
+    id: 'ostep.7.6',
+    source: 'OSTEP',
+    chapter: 7,
+    section: '7.6',
+    title: 'A New Metric: Response Time',
+    url: OSTEP_SCHED,
+  },
+  {
+    id: 'ostep.7.7',
+    source: 'OSTEP',
+    chapter: 7,
+    section: '7.7',
+    title: 'Round Robin',
+    url: OSTEP_SCHED,
+  },
+  {
+    id: 'ostep.7.8',
+    source: 'OSTEP',
+    chapter: 7,
+    section: '7.8',
+    title: 'Incorporating I/O',
+    url: OSTEP_SCHED,
+  },
+  {
+    id: 'ostep.8',
+    source: 'OSTEP',
+    chapter: 8,
+    title: 'Scheduling: The Multi-Level Feedback Queue',
+    url: OSTEP_MLFQ,
+  },
+  {
+    id: 'ostep.8.1',
+    source: 'OSTEP',
+    chapter: 8,
+    section: '8.1',
+    title: 'MLFQ: Basic Rules',
+    url: OSTEP_MLFQ,
+  },
+  {
+    id: 'ostep.8.2',
+    source: 'OSTEP',
+    chapter: 8,
+    section: '8.2',
+    title: 'Attempt #1: How To Change Priority',
+    url: OSTEP_MLFQ,
+  },
+  {
+    id: 'ostep.8.3',
+    source: 'OSTEP',
+    chapter: 8,
+    section: '8.3',
+    title: 'Attempt #2: The Priority Boost',
+    url: OSTEP_MLFQ,
+  },
+  {
+    id: 'ostep.8.4',
+    source: 'OSTEP',
+    chapter: 8,
+    section: '8.4',
+    title: 'Attempt #3: Better Accounting',
+    url: OSTEP_MLFQ,
+  },
+  {
+    id: 'osc10.5',
+    source: 'OSC10',
+    chapter: 5,
+    title: 'CPU Scheduling',
+  },
+  {
+    id: 'osc10.5.1.4',
+    source: 'OSC10',
+    chapter: 5,
+    section: '5.1.4',
+    title: 'Dispatcher',
+  },
+  {
+    id: 'osc10.5.2',
+    source: 'OSC10',
+    chapter: 5,
+    section: '5.2',
+    title: 'Scheduling Criteria',
+  },
+  {
+    id: 'osc10.5.3.1',
+    source: 'OSC10',
+    chapter: 5,
+    section: '5.3.1',
+    title: 'First-Come, First-Served Scheduling',
+  },
+  {
+    id: 'osc10.5.3.2',
+    source: 'OSC10',
+    chapter: 5,
+    section: '5.3.2',
+    title: 'Shortest-Job-First Scheduling',
+  },
+  {
+    id: 'osc10.5.3.3',
+    source: 'OSC10',
+    chapter: 5,
+    section: '5.3.3',
+    title: 'Round-Robin Scheduling',
+  },
+  {
+    id: 'osc10.5.3.4',
+    source: 'OSC10',
+    chapter: 5,
+    section: '5.3.4',
+    title: 'Priority Scheduling',
+  },
+  {
+    id: 'osc10.5.3.6',
+    source: 'OSC10',
+    chapter: 5,
+    section: '5.3.6',
+    title: 'Multilevel Feedback Queue Scheduling',
+  },
+];
