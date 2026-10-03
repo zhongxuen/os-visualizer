@@ -1,48 +1,83 @@
 @import 'tailwindcss';
+@import '../styles/tokens.css';
+@import '../styles/process.css';
 
 /*
- * Placeholder tokens for the scaffold. Phase 03 replaces these with the real design
- * tokens (type scale, process palette with patterns, focus ring).
+ * All colour lives in ../styles/tokens.css; nothing below, and nothing in any component,
+ * may introduce a raw value.
+ *
+ * `dark:` follows the resolved theme: the OS setting unless the toggle has written
+ * `data-theme` on <html>. Same precedence as the token blocks.
  */
-:root {
-  --bg: #fafaf9;
-  --surface: #ffffff;
-  --fg: #1c1917;
-  --fg-muted: #57534e;
-  --border: #d6d3d1;
-  --accent: #1d4ed8;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0c0a09;
-    --surface: #1c1917;
-    --fg: #f5f5f4;
-    --fg-muted: #a8a29e;
-    --border: #44403c;
-    --accent: #93c5fd;
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) & {
+      @slot;
+    }
+  }
+  :root[data-theme='dark'] & {
+    @slot;
   }
 }
 
-@theme inline {
-  --color-bg: var(--bg);
-  --color-surface: var(--surface);
-  --color-fg: var(--fg);
-  --color-fg-muted: var(--fg-muted);
-  --color-border: var(--border);
-  --color-accent: var(--accent);
-}
-
 body {
-  background: var(--bg);
-  color: var(--fg);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
 }
 
+::selection {
+  background: color-mix(in oklab, var(--accent) 30%, transparent);
+  color: var(--text-primary);
+}
+
+/*
+ * Reduced motion: no tweening anywhere. Playback still advances and every step is still
+ * reachable; what goes is the movement between states. JS-driven motion goes through
+ * `useReducedMotionSafe()` (src/components/timeline).
+ */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root :is(*, *::before, *::after) {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * One focus ring for every interactive element. In `@layer base` and behind `:where()`
+ * so a component that draws its own ring wins with a utility.
+ */
+@layer base {
+  :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  /* `main` is focused by the skip link; the heading it lands on is the confirmation. */
+  main:is(:focus, :focus-visible) {
+    outline: none;
+  }
+}
+
+/* The dimmest text that still clears 4.5:1: what a run has not reached yet. */
+.state-dim,
+.state-dim *:not([data-no-dim], [data-no-dim] *) {
+  color: var(--text-dim);
+}
+
+/* Off-screen until focused, then pinned top-left. The first Tab on every page finds it. */
+@layer components {
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+  }
+
+  .skip-link:focus {
+    left: 0.75rem;
+    top: 0.75rem;
   }
 }

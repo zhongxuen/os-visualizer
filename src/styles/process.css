@@ -1,0 +1,109 @@
+/*
+ * Process fills with patterns, for HTML elements (chips, queue entries, table cells).
+ *
+ * `<span class="proc-fill" data-proc="3">` draws slot 3's colour with slot 3's pattern
+ * and an ink outline. The slot is `pid % 10`; `src/components/shell/processPalette.ts`
+ * holds the same ten patterns by name, and `ProcessPatternDefs` draws them as SVG
+ * `<pattern>`s for charts. The two are kept in step by `processPalette.test.ts`.
+ *
+ * The pattern is the second signal, after colour and before the PID text. It is what
+ * tells slot 0 from slot 9 in greyscale or under deuteranopia.
+ */
+
+.proc-fill {
+  background-color: var(--proc-fill, var(--proc-0));
+  background-image: var(--proc-pattern, none);
+  background-size: var(--proc-pattern-size, auto);
+  border: 1px solid var(--proc-ink);
+  color: var(--proc-ink);
+}
+
+.proc-fill[data-proc='0'] {
+  --proc-fill: var(--proc-0);
+  --proc-pattern: none;
+}
+
+.proc-fill[data-proc='1'] {
+  --proc-fill: var(--proc-1);
+  --proc-pattern: repeating-linear-gradient(
+    45deg,
+    var(--proc-stroke) 0 2px,
+    transparent 2px 7px
+  );
+}
+
+.proc-fill[data-proc='2'] {
+  --proc-fill: var(--proc-2);
+  --proc-pattern: repeating-linear-gradient(
+    -45deg,
+    var(--proc-stroke) 0 2px,
+    transparent 2px 7px
+  );
+}
+
+.proc-fill[data-proc='3'] {
+  --proc-fill: var(--proc-3);
+  --proc-pattern: repeating-linear-gradient(
+    0deg,
+    var(--proc-stroke) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+.proc-fill[data-proc='4'] {
+  --proc-fill: var(--proc-4);
+  --proc-pattern: repeating-linear-gradient(
+    90deg,
+    var(--proc-stroke) 0 2px,
+    transparent 2px 6px
+  );
+}
+
+.proc-fill[data-proc='5'] {
+  --proc-fill: var(--proc-5);
+  --proc-pattern: radial-gradient(circle, var(--proc-stroke) 1.25px, transparent 1.75px);
+  --proc-pattern-size: 6px 6px;
+}
+
+.proc-fill[data-proc='6'] {
+  --proc-fill: var(--proc-6);
+  --proc-pattern:
+    repeating-linear-gradient(45deg, var(--proc-stroke) 0 1.5px, transparent 1.5px 7px),
+    repeating-linear-gradient(-45deg, var(--proc-stroke) 0 1.5px, transparent 1.5px 7px);
+}
+
+.proc-fill[data-proc='7'] {
+  --proc-fill: var(--proc-7);
+  --proc-pattern:
+    repeating-linear-gradient(0deg, var(--proc-stroke) 0 1.5px, transparent 1.5px 7px),
+    repeating-linear-gradient(90deg, var(--proc-stroke) 0 1.5px, transparent 1.5px 7px);
+}
+
+.proc-fill[data-proc='8'] {
+  --proc-fill: var(--proc-8);
+  --proc-pattern: conic-gradient(
+    var(--proc-stroke) 25%,
+    transparent 0 50%,
+    var(--proc-stroke) 0 75%,
+    transparent 0
+  );
+  --proc-pattern-size: 8px 8px;
+}
+
+.proc-fill[data-proc='9'] {
+  --proc-fill: var(--proc-9);
+  --proc-pattern: radial-gradient(circle, var(--proc-stroke) 2.5px, transparent 3px);
+  --proc-pattern-size: 10px 10px;
+}
+
+/* Idle or context-switch time: grey with a fine hatch, always labelled in text. */
+.idle-fill {
+  background-color: var(--idle-fill);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--idle-stroke) 0 1px,
+    transparent 1px 5px
+  );
+  border: 1px dashed var(--border-strong);
+  color: var(--text-primary);
+}

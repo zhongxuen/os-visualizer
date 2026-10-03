@@ -21,14 +21,14 @@ function ModuleCard({ module: m }: { module: ModuleEntry }) {
   return (
     <li
       className={cn(
-        'border-border bg-surface rounded-lg border',
+        'border-border bg-surface-raised rounded-lg border',
         ready && 'hover:border-accent transition-colors',
       )}
     >
       {ready ? (
         <Link
           href={m.route}
-          className="focus-visible:outline-accent block h-full rounded-lg p-5 focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="focus-visible:outline-focus block h-full rounded-lg p-5 focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           {body}
         </Link>
@@ -41,7 +41,11 @@ function ModuleCard({ module: m }: { module: ModuleEntry }) {
 
 export default function Home() {
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-6">
+    <main
+      id="main"
+      tabIndex={-1}
+      className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-6"
+    >
       <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{SITE_NAME}</h1>
       <p className="text-fg-muted mt-3 max-w-2xl">{SITE_DESCRIPTION}</p>
       <p className="text-fg-muted mt-2 max-w-2xl text-sm">
