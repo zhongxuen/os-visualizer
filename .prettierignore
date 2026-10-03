@@ -1,0 +1,14 @@
+.next
+out
+build
+coverage
+node_modules
+package-lock.json
+public
+playwright-report
+test-results
+
+# Hand-authored prose is the source of truth for how to build this project.
+# Prettier reflows tables, which creates review noise. Keep it out.
+*.md
+docs/
