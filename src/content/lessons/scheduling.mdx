@@ -1,0 +1,73 @@
+<LessonStep n={1} title="First come, first served, and the convoy" example="convoy">
+
+FCFS (first come, first served) runs processes in the order they arrive and never takes the CPU away from one that has started. It is easy to state and easy to trust, and it has one well-known cost.
+
+In this example P1 arrives at t = 0 needing 16 ticks, and three short jobs arrive a tick or two later. Press Play, or step with the arrow keys, and watch the ready queue fill while P1 holds the CPU. Each short job needs only two or three ticks, yet each waits more than ten.
+
+This is the **convoy effect**: short jobs stuck behind a long one, like cars behind a slow lorry on a single-lane road. **Waiting time** is the time a process spends ready but not running. The metrics panel shows it for each process and on average.
+
+<Checkpoint id="convoy-16" />
+
+</LessonStep>
+
+<LessonStep n={2} title="Shortest job first, and its preemptive cousin" example="osc-srtf">
+
+SJF (shortest job first) runs the ready process with the shortest next CPU burst. When every job is ready at once, no other order gives a lower average waiting time. The catch is that the scheduler must know each burst length in advance. A textbook can assume that; a real kernel can only estimate it from the past.
+
+SRTF (shortest remaining time first) adds preemption. When a process arrives with less work left than the running one, it takes the CPU straight away.
+
+This is the example from OSC10 §5.3.2. P1 starts at t = 0, and P2 arrives at t = 1 with a 4-tick burst while P1 still has 7 ticks to go. Step to t = 1 and read the reason in the inspector. Then think ahead to the moment P2 finishes, when three processes are waiting.
+
+<Checkpoint id="srtf-5" />
+
+</LessonStep>
+
+<LessonStep n={3} title="Round Robin and response time" example="ostep-rr">
+
+Round Robin gives each ready process a fixed slice of CPU time, the **quantum**, then sends it to the tail of the ready queue. Here three jobs of 5 ticks each arrive together and the quantum is 1 tick.
+
+Watch the Gantt chart: by t = 2 every job has run once. **Response time**, the time from arrival to the first run, is what a person at a keyboard feels, and Round Robin keeps it low. The price is turnaround, the time from arrival to completion: every job finishes near the end, because all three share the CPU until then.
+
+Switch to Free play and change the policy to SJF to see the opposite trade. A small quantum also means many context switches. In this model a context switch can cost ticks, and the Compare lesson measures what that does to the CPU.
+
+</LessonStep>
+
+<LessonStep n={4} title="Priority, starvation and aging" example="priority-starvation">
+
+Priority scheduling runs the ready process with the highest priority. In this model a lower number means a higher priority, as in OSC10, and the Rules panel says so.
+
+In the first example P1 has priority 9, and jobs with priority 1 or 2 keep arriving. Press End: P1 runs last, after every newcomer. That is **starvation**. A process that is always ready can still wait without limit, because something more important always turns up.
+
+**Aging** is the textbook fix. The longer a process waits, the higher its priority grows. The second example is the same workload with aging on: every 2 ticks of waiting lowers P1's number by 2. Load it and step through, reading the inspector as P1's priority climbs.
+
+<Example id="priority-aging" />
+
+<Checkpoint id="aging-9" />
+
+</LessonStep>
+
+<LessonStep n={5} title="MLFQ: learning from behaviour" example="mlfq-gaming-old">
+
+MLFQ (multi-level feedback queue) needs no burst lengths. It watches how each job behaves. OSTEP states its rules: a higher queue always runs first; jobs in the same queue take turns; a new job starts at the top; a job that uses up its time at a level moves down; and every so often all jobs are boosted back to the top.
+
+The original rule 4 let a job keep its level if it gave up the CPU before its quantum ran out. P2 games that rule. It runs for 3 ticks, then does 1 tick of I/O, just short of its 4-tick quantum, so it never moves down and keeps taking the CPU from P1.
+
+The second example uses the fixed rule 4, which counts a job's time at a level across its I/O. Load it and compare the Gantt charts.
+
+<Example id="mlfq-gaming-new" />
+
+<Checkpoint id="mlfq-old-8" />
+
+<RealSystems sources={[
+  { title: 'Linux kernel documentation: EEVDF Scheduler', url: 'https://docs.kernel.org/scheduler/sched-eevdf.html' },
+  { title: 'LWN: An EEVDF CPU scheduler for Linux (2023)', url: 'https://lwn.net/Articles/925371/' },
+  { title: 'Microsoft Learn: Scheduling Priorities', url: 'https://learn.microsoft.com/en-us/windows/win32/procthread/scheduling-priorities' },
+]}>
+
+Linux runs none of these policies as written. Since kernel 6.6 its default scheduler is EEVDF (earliest eligible virtual deadline first), which replaced CFS. Each task earns virtual run time weighted by its nice value. Among the tasks that are owed CPU time, the one with the earliest virtual deadline runs next.
+
+Windows uses preemptive priority scheduling with 32 priority levels and temporary priority boosts, closer to the priority and MLFQ ideas above. Both are described here, not simulated.
+
+</RealSystems>
+
+</LessonStep>

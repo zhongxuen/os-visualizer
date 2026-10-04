@@ -8,5 +8,6 @@ coverage/
 *.tsbuildinfo
 next-env.d.ts
 docs/**
+!docs/ACCURACY.md
 playwright-report/
 test-results/

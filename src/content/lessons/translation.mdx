@@ -1,0 +1,54 @@
+<LessonStep n={1} title="Page number and offset" example="ostep-paging">
+
+A program uses **virtual addresses**. Memory is reached by **physical addresses**. Paging connects the two in fixed-size pieces: the virtual address space is cut into pages, physical memory into frames of the same size, and a **page table** says which frame holds each page.
+
+Translation starts by splitting the address. The low bits are the **offset** within the page, and they pass through unchanged. The high bits are the **virtual page number** (VPN), which is looked up in the page table to find the **physical frame number** (PFN).
+
+This is OSTEP's first example: a 64-byte address space with 16-byte pages, so 4 offset bits and 2 VPN bits, and no TLB yet. The bit field shows the split. Predict the answer, then step on and check it.
+
+<Checkpoint id="paging-pa" />
+
+</LessonStep>
+
+<LessonStep n={2} title="The TLB: a cache of translations" example="ostep-array">
+
+Reading the page table costs a memory reference before every real one, so every load or store would cost twice as much. The **TLB** (translation lookaside buffer) is a small hardware cache of recent translations. On a **hit** the frame number comes straight from the TLB. On a **miss** the hardware walks the page table, then loads the translation into the TLB for next time.
+
+This example is OSTEP §19.2: a loop reads ten 4-byte integers starting at VA 100, with 16-byte pages. Step through the first three accesses and watch which slot of the TLB fills. Then the loop reaches the start of a new page.
+
+<Checkpoint id="array-miss" />
+
+</LessonStep>
+
+<LessonStep n={3} title="Locality" example="ostep-array-twice">
+
+The array walk hits 7 times out of 10. Each miss brings in a page of four integers, and the next three accesses land on the same page. That is **spatial locality**: programs tend to use addresses near ones they used recently.
+
+This example walks the same array a second time. The three pages are still in the TLB, so every access in the second pass hits. That is **temporal locality**: programs tend to reuse what they used recently.
+
+Locality is why a TLB with a handful of entries is enough for most programs. A program that jumps between more pages than the TLB holds misses on nearly every access. The TLB thrash preset in Free play shows that worst case.
+
+</LessonStep>
+
+<LessonStep n={4} title="Why two levels" example="two-level">
+
+A linear page table has one entry for every virtual page, used or not. A 32-bit address space with 4 KB pages and 4-byte entries needs a 4 MB table, for every process. Most of it describes pages that are not there.
+
+A **two-level page table** adds a page directory. Each directory entry points to one page of the page table, and a directory entry marked invalid means that whole page of table is never allocated. The sizing panel compares the two layouts for this address space.
+
+The saving has a price. A TLB miss now reads the directory entry, then the page-table entry, then the data itself.
+
+<Checkpoint id="two-level-refs" />
+
+<RealSystems sources={[
+  { title: 'Linux kernel documentation: Page Tables', url: 'https://docs.kernel.org/mm/page_tables.html' },
+  { title: 'Linux kernel documentation: 5-level paging (x86-64)', url: 'https://docs.kernel.org/arch/x86/x86_64/5level-paging.html' },
+]}>
+
+x86-64 takes the idea further. With 48-bit virtual addresses and 4 KB pages it uses four levels of page table, and processors with 5-level paging use five levels for 57-bit addresses. A TLB miss can therefore cost four or five page-table reads, which is why real processors also cache the upper levels of the walk.
+
+Real TLBs also tag entries with an address-space identifier, so a context switch need not empty them. This model's TLB has no such tags and belongs to one process.
+
+</RealSystems>
+
+</LessonStep>

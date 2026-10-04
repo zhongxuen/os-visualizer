@@ -1,0 +1,35 @@
+<LessonStep n={1} title="Turnaround or response?" example="response-vs-turnaround">
+
+Two metrics pull in opposite directions. **Turnaround time** is how long a job takes from arrival to completion. **Response time** is how long it waits before it first runs.
+
+This example runs the same three jobs, 8, 4 and 6 ticks long, under SJF and under Round Robin with a 2-tick quantum. Both Gantt charts share one time axis and one cursor, and the table underneath shows each metric at the cursor, with the best value in each row marked.
+
+Before you press Play, predict the two answers below. Then play the run to the end and read the table.
+
+<Checkpoint id="response" />
+
+<Checkpoint id="turnaround" />
+
+</LessonStep>
+
+<LessonStep n={2} title="The quantum trade-off" example="rr-sweep">
+
+Round Robin's quantum is a dial. Turn it down and every job starts sooner, so response time falls. But every expiry is a context switch, and here each switch costs 1 tick of CPU time in which no process runs.
+
+This example runs one workload under four quanta: 1, 2, 4 and 8 ticks. Compare the rows for context switches and CPU utilisation. With q = 1 the CPU spends about as long switching as working. With q = 8 no job is interrupted at all, and Round Robin behaves almost exactly like FCFS.
+
+The textbook advice is a quantum large compared with the switch cost, yet short enough that most jobs still get a turn quickly.
+
+<Checkpoint id="switches" />
+
+</LessonStep>
+
+<LessonStep n={3} title="No policy wins every metric" example="fcfs-sjf-srtf">
+
+The last example is the convoy workload from the scheduling lesson, under FCFS, SJF and SRTF. SRTF has the best average waiting, turnaround and response times here, because it lets each short job past the long one the moment it arrives.
+
+That does not make SRTF the answer. It needs burst lengths nobody knows in advance, it can starve long jobs, and every preemption is a context switch. Round Robin wins on response time when jobs are similar. MLFQ tries to get the best of both by learning which jobs are interactive.
+
+Use Free play to build workloads of your own. Try to find one where FCFS is no worse than SJF, and one where Round Robin beats both on response time. The "Why?" line under the table names the deciding numbers.
+
+</LessonStep>

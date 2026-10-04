@@ -1,4 +1,6 @@
+import mdx from '@mdx-js/rollup';
 import react from '@vitejs/plugin-react';
+import remarkGfm from 'remark-gfm';
 import { defineConfig } from 'vitest/config';
 
 /**
@@ -30,12 +32,15 @@ export default defineConfig({
       },
       {
         resolve: { tsconfigPaths: true },
-        plugins: [react()],
+        // `mdx()` before `react()`, and `enforce: 'pre'` so it claims `.mdx` before esbuild
+        // reads a lesson as TypeScript. Next compiles lessons with `@next/mdx`; this
+        // compiles the same files for the tests, with the same one remark plugin.
+        plugins: [{ enforce: 'pre', ...mdx({ remarkPlugins: [remarkGfm] }) }, react()],
         test: {
           name: 'ui',
           environment: 'jsdom',
           setupFiles: ['./tests/setup-core.ts', './tests/setup.ts'],
-          include: ['src/{components,modules,lib}/**/*.test.{ts,tsx}'],
+          include: ['src/{components,modules,lib,content}/**/*.test.{ts,tsx}'],
           // axe in jsdom (twice, light and dark) is CPU-bound; with both projects running
           // in parallel a single check can pass the 5 s default.
           testTimeout: 20_000,

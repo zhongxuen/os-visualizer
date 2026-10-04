@@ -2,6 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { DL_RULES } from '@/core/deadlock/rules';
+import { REPL_RULES } from '@/core/replace/rules';
+import { SCHED_RULES } from '@/core/sched/rules';
+import { VM_RULES } from '@/core/vm/rules';
+
 export const metadata: Metadata = {
   title: 'About',
   description:
@@ -9,9 +14,21 @@ export const metadata: Metadata = {
 };
 
 /*
- * Skeleton (phase 03). The disclaimers are the ones in docs/implementation/09 step 3;
- * phase 09 adds the per-module conventions and the source list from docs/ACCURACY.md.
+ * The disclaimers are the ones in docs/implementation/09 step 3. The conventions are
+ * read from each module's `rules.ts`, the same lists the Rules panels show, so this page
+ * cannot disagree with them; docs/ACCURACY.md has the same lists with their sources.
  */
+
+const CONVENTIONS: readonly {
+  id: string;
+  title: string;
+  rules: readonly { id: string; text: string; detail?: string }[];
+}[] = [
+  { id: 'conventions-sched', title: 'CPU scheduling and Compare', rules: SCHED_RULES },
+  { id: 'conventions-vm', title: 'Address translation', rules: VM_RULES },
+  { id: 'conventions-repl', title: 'Page replacement', rules: REPL_RULES },
+  { id: 'conventions-dl', title: 'Deadlock', rules: DL_RULES },
+];
 
 function Section({
   id,
@@ -113,7 +130,56 @@ export default function AboutPage() {
       <Section id="conventions" title="Conventions">
         <p>
           Each module lists the rules it uses, including every tie-break, in its Rules
-          used panel. They are collected here as the modules are released.
+          used panel. Every rule has a test named after it. Here they are in one place.
+        </p>
+        {CONVENTIONS.map((group) => (
+          <details key={group.id} className="border-border rounded-lg border p-4">
+            <summary className="text-fg cursor-pointer font-medium">
+              {group.title} ({group.rules.length} rules)
+            </summary>
+            <ul className="text-small mt-3 list-disc space-y-2 pl-5">
+              {group.rules.map((rule) => (
+                <li key={rule.id}>
+                  {rule.text}
+                  {rule.detail ? (
+                    <span className="text-fg-muted block">{rule.detail}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ))}
+      </Section>
+
+      <Section id="sources" title="Sources">
+        <ul className="list-disc space-y-2 pl-5">
+          <li>
+            Remzi H. Arpaci-Dusseau and Andrea C. Arpaci-Dusseau,{' '}
+            <cite>Operating Systems: Three Easy Pieces</cite>, version 1.10 (OSTEP). The
+            chapters are free at{' '}
+            <a
+              href="https://pages.cs.wisc.edu/~remzi/OSTEP/"
+              className="text-accent underline"
+            >
+              pages.cs.wisc.edu/~remzi/OSTEP
+            </a>
+            .
+          </li>
+          <li>
+            Abraham Silberschatz, Peter B. Galvin and Greg Gagne,{' '}
+            <cite>Operating System Concepts</cite>, 10th edition (OSC10).
+          </li>
+        </ul>
+        <p>
+          Every step in every module names its chapter and section. The full list of
+          citations, conventions and known simplifications is in{' '}
+          <a
+            href="https://github.com/zhongxuen/os-visualizer/blob/main/docs/ACCURACY.md"
+            className="text-accent underline"
+          >
+            docs/ACCURACY.md
+          </a>
+          .
         </p>
       </Section>
 

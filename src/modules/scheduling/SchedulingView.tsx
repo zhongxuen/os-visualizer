@@ -6,6 +6,8 @@ import { GanttChart } from '@/components/blocks/GanttChart';
 import { formatMetric, MetricsTable } from '@/components/blocks/MetricsTable';
 import { QueueView } from '@/components/blocks/QueueView';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
+import { matchExample } from '@/components/lesson/examples';
+import { Walkthrough } from '@/components/lesson/Walkthrough';
 import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { StepInspector } from '@/components/inspector/StepInspector';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
@@ -15,6 +17,7 @@ import { PhaseStepper } from '@/components/timeline/PhaseStepper';
 import { PlaybackBar } from '@/components/timeline/PlaybackBar';
 import { StepCaption } from '@/components/timeline/StepCaption';
 import { Button } from '@/components/timeline/ui/Button';
+import SchedulingLesson from '@/content/lessons/scheduling.mdx';
 import { createRegistry } from '@/core/citations/registry';
 import { schedCitations } from '@/core/sched/citations';
 import { METRIC_DEFINITIONS, metricsFrom } from '@/core/sched/metrics';
@@ -43,6 +46,7 @@ import {
   toGanttSegments,
 } from './adapters';
 import { Panel, SelectField } from './fields';
+import { LESSON, LESSON_CHECKPOINTS, LESSON_EXAMPLES } from './lesson';
 import { PolicyPicker } from './PolicyPicker';
 import { useTickRun } from './useTickRun';
 import { WorkloadEditor } from './WorkloadEditor';
@@ -123,6 +127,11 @@ export function SchedulingView() {
     setLoads((n) => n + 1);
     setStatus(message);
   };
+
+  const activeExample = useMemo(
+    () => matchExample(LESSON_EXAMPLES, { workload, policy }),
+    [workload, policy],
+  );
 
   const saved = progress
     .savedFor(SAVE_KEY)
@@ -272,6 +281,21 @@ export function SchedulingView() {
         timeline={<PlaybackBar store={store} phases={run.phases} unit="tick" />}
       >
         <div className="flex flex-col gap-6">
+          {mode === 'walkthrough' ? (
+            <Walkthrough
+              lesson={LESSON}
+              Content={SchedulingLesson}
+              store={store}
+              unit="tick"
+              examples={LESSON_EXAMPLES}
+              activeExample={activeExample}
+              onLoadExample={(id) => {
+                const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
+                load(example.input, `Loaded example: ${example.title}`);
+              }}
+              checkpoints={LESSON_CHECKPOINTS}
+            />
+          ) : null}
           {mode === 'walkthrough' ? (
             <StepCaption
               phases={run.phases}

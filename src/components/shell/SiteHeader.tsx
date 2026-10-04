@@ -6,7 +6,7 @@ import { MODULES } from '@/modules/registry';
 import { ThemeToggle } from './ThemeToggle';
 
 /**
- * The bar on every page: skip link, the site name home, the ready modules, About, and
+ * The bar on every page: skip link, the site name home, the ready modules, Learn, About and
  * the theme toggle. Modules come from the registry, so a module appears here the moment
  * its entry is flipped to `ready`.
  */
@@ -37,6 +37,11 @@ export function SiteHeader() {
                 </Link>
               </li>
             ))}
+            <li>
+              <Link href="/learn" className="text-fg-secondary hover:text-fg rounded-sm">
+                Learn
+              </Link>
+            </li>
             <li>
               <Link href="/about" className="text-fg-secondary hover:text-fg rounded-sm">
                 About

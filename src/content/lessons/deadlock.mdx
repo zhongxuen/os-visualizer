@@ -1,0 +1,68 @@
+<LessonStep n={1} title="The four conditions" example="two-locks">
+
+A **deadlock** is a set of threads each waiting for something only another thread in the set can provide. Nobody in the set can move, and nothing outside it will help.
+
+Four conditions must all hold for a deadlock to happen. **Mutual exclusion**: a resource is held by one thread at a time. **Hold and wait**: a thread holds one resource while it waits for another. **No preemption**: a resource is released only by the thread holding it. **Circular wait**: there is a cycle of threads, each waiting for the next.
+
+This example is the simplest one. T0 holds lock R0 and wants R1, while T1 holds R1 and wants R0. The Coffman panel shows which conditions hold. Mutual exclusion and no preemption are properties of the model, so the panel marks them as assumed rather than checked.
+
+</LessonStep>
+
+<LessonStep n={2} title="Finding the cycle" example="two-locks">
+
+In a **resource-allocation graph** an edge from a resource to a thread means the thread holds it, and an edge from a thread to a resource means the thread is waiting for it. When every resource type has one instance, a cycle in this graph means deadlock, and no cycle means none.
+
+The cycle detector collapses the graph into a **wait-for graph**, where an edge Ti → Tj means Ti waits for something Tj holds. Then it runs a depth-first search. Reaching a thread that is already on the current path closes a cycle.
+
+Predict the verdict before you step, then watch the search. The graph can also be edited from the form beside it, without a mouse.
+
+<Checkpoint id="two-locks" />
+
+</LessonStep>
+
+<LessonStep n={3} title="When a cycle is not enough" example="cycle-no-deadlock">
+
+With several instances of a resource type, a cycle is necessary for deadlock but no longer sufficient. This is OSC10's Figure 8.6: the cycle is real, but a thread outside it can finish and release an instance that breaks it.
+
+So for multi-instance graphs this model hands over to the **detection algorithm** of OSC10 §8.7.2. It keeps a Work vector, starting as Available, and repeatedly looks for a thread whose Request fits in Work. That thread can finish, so its allocation is added back to Work. Any thread left at the end is deadlocked.
+
+The second example is OSC10's detection exercise after T2 asks for one more instance: only T0 can finish, and what it frees is not enough for anyone else.
+
+<Checkpoint id="cycle-multi" />
+
+<Example id="osc10-detect-after" />
+
+</LessonStep>
+
+<LessonStep n={4} title="Banker's algorithm: avoid it in advance" example="bankers-osc10-safe">
+
+Detection finds a deadlock after it has happened. **Banker's algorithm** avoids one in advance. Each thread declares its maximum claim, and Need = Max − Allocation is what it may still ask for. A state is **safe** if there is some order in which every thread can get its full Need and finish.
+
+The safety algorithm is the detection loop with Need in place of Request. This model scans from T0 and takes the lowest-numbered thread that fits, so it finds one safe sequence; others may exist.
+
+A request is granted only if the state after granting it would still be safe. The second example has T0 asking for resources that are free right now.
+
+<Checkpoint id="bankers-safe" />
+
+<Example id="bankers-osc10-t0" />
+
+<Checkpoint id="bankers-t0" />
+
+</LessonStep>
+
+<LessonStep n={5} title="Recovery" example="two-locks-recovered">
+
+Once a deadlock is found, something has to give. **Terminating** a thread releases everything it holds. **Preempting** a resource takes it back from a thread, which must be rolled back to before it acquired the resource. Both have a cost, so a system chooses its victim with care.
+
+This example is the two-lock deadlock with T1 terminated. Detection runs again on what is left and finds no cycle. In Free play, the recovery panel lets you terminate or preempt step by step on any deadlocked graph.
+
+<RealSystems sources={[
+  { title: 'Linux kernel documentation: Runtime locking correctness validator (lockdep)', url: 'https://docs.kernel.org/locking/lockdep-design.html' },
+  { title: 'OSTEP ch. 32: Common Concurrency Problems', url: 'https://pages.cs.wisc.edu/~remzi/OSTEP/threads-bugs.pdf' },
+]}>
+
+General-purpose kernels do not run Banker's algorithm. Threads rarely declare a maximum claim in advance, and checking safety on every request would be costly. Instead, deadlock is prevented by breaking circular wait: locks are always taken in one agreed order. Linux checks this ordering while the kernel runs with lockdep, which reports any lock order that could form a cycle.
+
+</RealSystems>
+
+</LessonStep>

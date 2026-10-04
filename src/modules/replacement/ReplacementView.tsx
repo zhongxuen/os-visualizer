@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { FrameStrip } from '@/components/blocks/FrameStrip';
 import { MetricsTable } from '@/components/blocks/MetricsTable';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
+import { Walkthrough } from '@/components/lesson/Walkthrough';
 import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { StepInspector } from '@/components/inspector/StepInspector';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
@@ -13,6 +14,7 @@ import { PhaseStepper } from '@/components/timeline/PhaseStepper';
 import { PlaybackBar } from '@/components/timeline/PlaybackBar';
 import { StepCaption } from '@/components/timeline/StepCaption';
 import { Button } from '@/components/timeline/ui/Button';
+import ReplacementLesson from '@/content/lessons/replacement.mdx';
 import { createRegistry } from '@/core/citations/registry';
 import { replaceCitations } from '@/core/replace/citations';
 import { allCurves } from '@/core/replace/curve';
@@ -41,6 +43,7 @@ import { BeladyPanel } from './BeladyPanel';
 import { CurvePanel } from './CurvePanel';
 import { Panel, SelectField } from './fields';
 import { InputPanel } from './InputPanel';
+import { activeExample, LESSON, LESSON_CHECKPOINTS, LESSON_EXAMPLES } from './lesson';
 import { PolicyState } from './PolicyState';
 import { PolicyTabs } from './PolicyTabs';
 import { useStepRun } from './useStepRun';
@@ -176,6 +179,24 @@ export function ReplacementView() {
         timeline={<PlaybackBar store={store} phases={run.phases} unit="step" />}
       >
         <div className="flex flex-col gap-6">
+          {mode === 'walkthrough' ? (
+            <Walkthrough
+              lesson={LESSON}
+              Content={ReplacementLesson}
+              store={store}
+              unit="step"
+              examples={LESSON_EXAMPLES}
+              activeExample={activeExample(input)}
+              onLoadExample={(id) => {
+                const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
+                setInput(example.input);
+                setGenerator(undefined);
+                setLoads((n) => n + 1);
+                setStatus(`Loaded example: ${example.title}`);
+              }}
+              checkpoints={LESSON_CHECKPOINTS}
+            />
+          ) : null}
           {mode === 'walkthrough' ? (
             <StepCaption
               phases={run.phases}

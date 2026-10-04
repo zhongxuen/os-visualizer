@@ -3,11 +3,13 @@
 import { useMemo, useState } from 'react';
 
 import { GanttChart } from '@/components/blocks/GanttChart';
+import { Walkthrough } from '@/components/lesson/Walkthrough';
 import { MetricsTable } from '@/components/blocks/MetricsTable';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
 import { useShareState } from '@/components/state/useShareState';
 import { PlaybackBar } from '@/components/timeline/PlaybackBar';
 import { Button } from '@/components/timeline/ui/Button';
+import CompareLesson from '@/content/lessons/compare.mdx';
 import { compare, COMPARE_PRESETS, type CompareRow, whyLine } from '@/core/sched/compare';
 import { metricsFrom, type RunMetrics } from '@/core/sched/metrics';
 import { COMPARE_SHARE_STATE } from '@/core/sched/state';
@@ -24,6 +26,7 @@ import {
   WorkloadEditor,
 } from '@/modules/scheduling';
 
+import { activeExample, LESSON, LESSON_CHECKPOINTS, LESSON_EXAMPLES } from './lesson';
 import { PolicyColumns } from './PolicyColumns';
 
 /**
@@ -64,7 +67,7 @@ export function CompareView() {
   const share = useShareState(COMPARE_SHARE_STATE);
   const { state, setState, ready } = share;
   const { workload, policies } = state.input;
-  const [mode, setMode] = useState<ModuleMode>('free');
+  const [mode, setMode] = useState<ModuleMode>('walkthrough');
   const [presetId, setPresetId] = useState(COMPARE_PRESETS[0]!.id);
   const [loads, setLoads] = useState(0);
   const [status, setStatus] = useState('');
@@ -164,11 +167,21 @@ export function CompareView() {
     >
       <div className="flex flex-col gap-6">
         {mode === 'walkthrough' ? (
-          <p className="border-border bg-surface-raised text-small rounded-lg border p-4">
-            Step through with the arrow keys: every chart follows the same cursor. Before
-            you reach the end, predict which policy will have the lowest average waiting
-            time.
-          </p>
+          <Walkthrough
+            lesson={LESSON}
+            Content={CompareLesson}
+            store={store}
+            unit="tick"
+            examples={LESSON_EXAMPLES}
+            activeExample={activeExample({ workload, policies })}
+            onLoadExample={(id) => {
+              const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
+              setInput(example.input);
+              setLoads((n) => n + 1);
+              setStatus(`Loaded example: ${example.title}`);
+            }}
+            checkpoints={LESSON_CHECKPOINTS}
+          />
         ) : null}
         <section aria-labelledby="charts-heading" className="flex flex-col gap-4">
           <h2 id="charts-heading" className="text-lead font-semibold">

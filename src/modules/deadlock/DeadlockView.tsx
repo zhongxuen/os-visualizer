@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
 import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { StepInspector } from '@/components/inspector/StepInspector';
+import { Walkthrough } from '@/components/lesson/Walkthrough';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
 import { useShareState } from '@/components/state/useShareState';
 import { PhaseStepper } from '@/components/timeline/PhaseStepper';
@@ -31,6 +32,7 @@ import {
 import { METHOD_NAMES, METHODS, runGraph, type Method } from '@/core/deadlock/recover';
 import { DL_RULES } from '@/core/deadlock/rules';
 import { DEADLOCK_SHARE_STATE, type DlInput, type DlView } from '@/core/deadlock/state';
+import DeadlockLesson from '@/content/lessons/deadlock.mdx';
 import { createRegistry } from '@/core/citations/registry';
 
 import {
@@ -47,6 +49,7 @@ import { DetectView } from './DetectView';
 import { Panel, SelectField } from './fields';
 import { GraphEditorForm } from './GraphEditorForm';
 import { RecoveryPanel } from './RecoveryPanel';
+import { activeExample, LESSON, LESSON_CHECKPOINTS, LESSON_EXAMPLES } from './lesson';
 import { useStepRun } from './useStepRun';
 import { PANEL_ID, tabId, ViewTabs } from './ViewTabs';
 
@@ -404,6 +407,23 @@ export function DeadlockView() {
           aria-labelledby={tabId(view)}
           className="flex flex-col gap-6"
         >
+          {mode === 'walkthrough' ? (
+            <Walkthrough
+              lesson={LESSON}
+              Content={DeadlockLesson}
+              store={store}
+              unit="step"
+              examples={LESSON_EXAMPLES}
+              activeExample={activeExample(input)}
+              onLoadExample={(id) => {
+                const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
+                setInput(example.patch);
+                setLoads((n) => n + 1);
+                setStatus(`Loaded example: ${example.title}`);
+              }}
+              checkpoints={LESSON_CHECKPOINTS}
+            />
+          ) : null}
           {mode === 'walkthrough' ? (
             <StepCaption
               phases={run.phases}
