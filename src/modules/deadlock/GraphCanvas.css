@@ -1,0 +1,8 @@
+/* React Flow's attribution link, in the site's colours so it meets AA contrast. */
+.deadlock-canvas .react-flow__attribution {
+  background: var(--color-surface);
+}
+
+.deadlock-canvas .react-flow__attribution a {
+  color: var(--color-fg-secondary);
+}

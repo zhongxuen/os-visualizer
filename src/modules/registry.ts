@@ -69,7 +69,7 @@ export const MODULES: readonly ModuleEntry[] = [
     blurb:
       "Build a resource-allocation graph, run detection and Banker's algorithm, then recover by terminating or preempting.",
     number: 5,
-    status: 'planned',
+    status: 'ready',
     phase: 1,
   },
   {

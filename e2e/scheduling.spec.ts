@@ -45,8 +45,14 @@ test('scheduling: OSC10 SJF preset, keyboard to the end, average waiting 7, axe 
 
 test('scheduling: the URL reproduces the workload, policy and step', async ({ page }) => {
   await page.goto('/scheduling');
-  await page.getByLabel('Preset', { exact: true }).selectOption('osc-rr');
-  await page.getByRole('button', { name: 'Load preset' }).click();
+  // Retry until hydrated: a change made before React attaches is lost.
+  await expect(async () => {
+    await page.getByLabel('Preset', { exact: true }).selectOption('osc-rr');
+    await page.getByRole('button', { name: 'Load preset' }).click();
+    await expect(page.getByText('Loaded preset: OSC10 Round Robin, q = 4')).toBeVisible({
+      timeout: 500,
+    });
+  }).toPass();
   await page.keyboard.press('End');
   await expect(page.getByTestId('avg-waiting')).toHaveText('5.67');
   await expect(page).toHaveURL(/\?s=/);

@@ -36,8 +36,14 @@ test('translation: a fault step links to Page Replacement and the URL keeps the 
   page,
 }) => {
   await page.goto('/translation');
-  await page.getByLabel('Preset', { exact: true }).selectOption('invalid-page');
-  await page.getByRole('button', { name: 'Load preset' }).click();
+  // Retry until hydrated: a change made before React attaches is lost.
+  await expect(async () => {
+    await page.getByLabel('Preset', { exact: true }).selectOption('invalid-page');
+    await page.getByRole('button', { name: 'Load preset' }).click();
+    await expect(page.getByText('Loaded preset: Invalid page')).toBeVisible({
+      timeout: 500,
+    });
+  }).toPass();
   await page.keyboard.press('End');
   const inspector = page.getByRole('region', { name: 'Inspector' });
   await expect(inspector.getByRole('link', { name: /Page Replacement/ })).toHaveAttribute(
@@ -45,7 +51,14 @@ test('translation: a fault step links to Page Replacement and the URL keeps the 
     '/replacement',
   );
   await expect(page.getByTestId('faults')).toHaveText('3');
-  await expect(page).toHaveURL(/\?s=/);
+  // The URL follows after a debounce: wait until it holds a step past 0.
+  await expect
+    .poll(() => {
+      const s = new URL(page.url()).searchParams.get('s');
+      if (!s) return false;
+      return JSON.parse(Buffer.from(s, 'base64url').toString('utf8')).step > 0;
+    })
+    .toBe(true);
 
   const url = page.url();
   await page.goto('about:blank');
