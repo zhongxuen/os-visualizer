@@ -8,6 +8,7 @@
 import { deadlockCitations } from '../deadlock/citations';
 import { replaceCitations } from '../replace/citations';
 import { schedCitations } from '../sched/citations';
+import { syncCitations } from '../sync/citations';
 import { vmCitations } from '../vm/citations';
 import { generalCitations } from './general';
 import { createRegistry } from './registry';
@@ -18,6 +19,7 @@ export const citations = createRegistry([
   vmCitations,
   replaceCitations,
   deadlockCitations,
+  syncCitations,
 ]);
 
 export { createRegistry, type CitationRegistry } from './registry';

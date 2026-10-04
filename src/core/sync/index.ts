@@ -1,0 +1,87 @@
+export { syncCitations } from './citations';
+export type {
+  SyncEvent,
+  SyncEventKind,
+  SyncResult,
+  SyncResultKind,
+  SyncSnapshot,
+} from './events';
+export {
+  explore,
+  MAX_STATES,
+  type Exploration,
+  type OutcomeGroup,
+  type OutcomeKind,
+} from './explore';
+export {
+  describeWaiting,
+  effectivePicks,
+  finalState,
+  formatValues,
+  interleave,
+  isDeadlock,
+  nextPicks,
+  type InterleaveOptions,
+  type SyncRun,
+} from './interleave';
+export {
+  allFinished,
+  brokenBounds,
+  initialMachine,
+  isFinished,
+  isStuck,
+  meetsExpectations,
+  nextOp,
+  progressable,
+  schedulable,
+  statusOf,
+  step,
+  waitingOn,
+  type Effect,
+  type Machine,
+  type SemState,
+  type StepResult,
+  type ThreadStatus,
+} from './machine';
+export {
+  describeSchedule,
+  formatOp,
+  LIMITS,
+  MAX_QUANTUM,
+  MAX_SEED,
+  PROGRAM_SCHEMA,
+  programIssues,
+  registersOf,
+  SCHEDULE_KINDS,
+  SCHEDULE_NAMES,
+  SCHEDULE_SCHEMA,
+  threadName,
+  validateProgram,
+  type Bound,
+  type Expectation,
+  type Op,
+  type OpKind,
+  type Program,
+  type Schedule,
+  type ScheduleKind,
+  type SemDecl,
+  type Thread,
+  type ValidationIssue,
+  type Validation,
+  type VarDecl,
+} from './program';
+export {
+  counterProgram,
+  DEFAULT_PRESET,
+  presetById,
+  prodconsProgram,
+  SYNC_PRESETS,
+  type SyncPreset,
+} from './presets';
+export { SYNC_RULES, type SyncRule } from './rules';
+export {
+  DEFAULT_INPUT,
+  SYNC_INPUT_SCHEMA,
+  SYNC_SHARE_STATE,
+  type SyncInput,
+} from './state';

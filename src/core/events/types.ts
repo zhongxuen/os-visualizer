@@ -15,6 +15,7 @@ import type { DlEvent } from '../deadlock/events';
 import type { ReplEvent } from '../replace/events';
 import type { SchedEvent } from '../sched/events';
 import type { SimResult, TimedEvent } from '../sim/result';
+import type { SyncEvent } from '../sync/events';
 import type { VmEvent } from '../vm/events';
 
 export interface EventBase extends TimedEvent {
@@ -28,6 +29,6 @@ export interface EventBase extends TimedEvent {
   citation: CitationId;
 }
 
-export type OsEvent = SchedEvent | VmEvent | ReplEvent | DlEvent;
+export type OsEvent = SchedEvent | VmEvent | ReplEvent | DlEvent | SyncEvent;
 
 export type OsRun = SimResult<OsEvent>;
