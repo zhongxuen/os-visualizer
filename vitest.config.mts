@@ -36,6 +36,9 @@ export default defineConfig({
           environment: 'jsdom',
           setupFiles: ['./tests/setup-core.ts', './tests/setup.ts'],
           include: ['src/{components,modules,lib}/**/*.test.{ts,tsx}'],
+          // axe in jsdom (twice, light and dark) is CPU-bound; with both projects running
+          // in parallel a single check can pass the 5 s default.
+          testTimeout: 20_000,
         },
       },
     ],

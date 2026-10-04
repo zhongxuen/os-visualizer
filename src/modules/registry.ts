@@ -49,7 +49,7 @@ export const MODULES: readonly ModuleEntry[] = [
     blurb:
       'Split a virtual address, look it up in the TLB, walk the page table and land on a physical frame.',
     number: 3,
-    status: 'planned',
+    status: 'ready',
     phase: 1,
   },
   {
