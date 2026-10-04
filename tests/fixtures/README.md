@@ -21,3 +21,7 @@ Module agents append their own rows only.
 | MLFQ, I/O-bound job keeps the top queue (Figure 8.4) | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 8, §8.2 | `sched/ostep8-mlfq.test.ts` |
 | MLFQ, without and with priority boost (Figure 8.5) | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 8, §8.3 | `sched/ostep8-mlfq.test.ts` |
 | MLFQ, gaming without and with allotment accounting (Figure 8.6) | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 8, §8.4 | `sched/ostep8-mlfq.test.ts` |
+| Paging, 64-byte space, 16-byte pages (Figure 18.2): VA 21 = VPN 1, offset 5 → PFN 7 → PA 117 | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 18, §18.1 | `vm/ostep.test.ts` |
+| Linear page table, 32-bit space, 4 KB pages, 4-byte PTEs: 4 MB | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 18, §18.2 | `vm/ostep.test.ts` |
+| TLB, ten ints from VA 100, 16-byte pages: miss, hit, hit, miss, hit, hit, hit, miss, hit, hit = 70%; second pass all hits | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 19, §19.2 | `vm/ostep.test.ts` |
+| Two-level, 16 KB space, 64-byte pages: VA 0x3F80 → PD index 15, PT index 14 → PFN 55 → PA 0x0DC0; 3 table pages instead of 16 | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 20, §20.3 | `vm/ostep.test.ts` |
