@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { timelineFrom } from '../sim/playback';
 import { createRun, STEP_MS, TICK_MS } from './builder';
-import type { EventBase, OsEvent } from './types';
+import type { EventBase } from './types';
 
 type TestEvent = EventBase & { kind: 'test.event'; value: number };
 
@@ -107,10 +107,11 @@ describe('createRun', () => {
   it.each(['tick', 'step'] as const)(
     'produces a %s run the vendored timelineFrom accepts',
     (unit) => {
-      const run = createRun<OsEvent>({ unit });
+      const run = createRun<TestEvent>({ unit });
       run.phase('start', 'Start', 'd');
       run.emit({
-        kind: 'deadlock.placeholder',
+        kind: 'test.event',
+        value: 0,
         id: 'a',
         label: 'a',
         citation: 'ostep.4',
@@ -118,13 +119,15 @@ describe('createRun', () => {
       run.advance();
       run.phase('next', 'Next', 'd');
       run.emit({
-        kind: 'deadlock.placeholder',
+        kind: 'test.event',
+        value: 0,
         id: 'b',
         label: 'b',
         citation: 'ostep.4',
       });
       run.emit({
-        kind: 'deadlock.placeholder',
+        kind: 'test.event',
+        value: 0,
         id: 'c',
         label: 'c',
         citation: 'ostep.4',

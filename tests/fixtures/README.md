@@ -33,3 +33,10 @@ Module agents append their own rows only.
 | Same string: FIFO 4 hits = 36.4% (Figure 22.2) | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 22, §22.3 | `replace/textbook.test.ts` |
 | Same string: LRU 6 hits = 54.5% (Figure 22.5) | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 22, §22.5 | `replace/textbook.test.ts` |
 | Looping-sequential workload: LRU and FIFO miss on every reference with fewer frames than pages | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 22, §22.6 | `replace/textbook.test.ts` |
+| Banker's, T0–T4 over (10, 5, 7), Allocation 010,200,302,211,002, Max 753,322,902,222,433, Available 332: safe. Book ⟨T1,T3,T4,T2,T0⟩, scan rule ⟨T1,T3,T0,T2,T4⟩, both validated | Silberschatz, *Operating System Concepts* | 10th | §8.6.3.3 | `deadlock/textbook.test.ts` |
+| Same state: T1 requests (1,0,2) → granted, new state safe | Silberschatz, *Operating System Concepts* | 10th | §8.6.3.3 | `deadlock/textbook.test.ts` |
+| Then T4 requests (3,3,0) → waits (not enough available) | Silberschatz, *Operating System Concepts* | 10th | §8.6.3.3 | `deadlock/textbook.test.ts` |
+| Then T0 requests (0,2,0) → refused (resulting state unsafe) | Silberschatz, *Operating System Concepts* | 10th | §8.6.3.3 | `deadlock/textbook.test.ts` |
+| Detection, T0–T4 over (7, 2, 6), Allocation 010,200,303,211,002, Request 000,202,000,100,002, Available 000: not deadlocked (order validated) | Silberschatz, *Operating System Concepts* | 10th | §8.7.2 | `deadlock/textbook.test.ts` |
+| Then T2 requests one more C: deadlocked set {T1, T2, T3, T4} | Silberschatz, *Operating System Concepts* | 10th | §8.7.2 | `deadlock/textbook.test.ts` |
+| Resource-allocation graph with a cycle but no deadlock (Figure 8.6), and with a multi-instance deadlock (Figure 8.5); threads renumbered from T0 | Silberschatz, *Operating System Concepts* | 10th | §8.3.2 | `deadlock/textbook.test.ts` |
