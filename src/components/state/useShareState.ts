@@ -97,7 +97,13 @@ export function useShareState(
     let decoded: ShareStateBase | undefined;
     return {
       subscribe: () => () => {},
-      get: () => (decoded ??= shareStateFromSearch(definition, window.location.search)),
+      // No `?s=` at all (most visits): the defaults themselves, not a decoded copy, so
+      // the state keeps its identity through hydration and the page does not
+      // recompute its run and re-render everything a second time.
+      get: () =>
+        (decoded ??= new URLSearchParams(window.location.search).has(SHARE_PARAM)
+          ? shareStateFromSearch(definition, window.location.search)
+          : definition.defaults),
       server: () => null,
     };
   });

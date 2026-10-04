@@ -1,7 +1,13 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 
-import { DONE_CAPTION, stageMoment, StepCaption, stepCaption } from './StepCaption';
+import {
+  CAPTION_THROTTLE_MS,
+  DONE_CAPTION,
+  stageMoment,
+  StepCaption,
+  stepCaption,
+} from './StepCaption';
 import { buildTickRun } from './testing';
 
 const RUN = buildTickRun();
@@ -40,5 +46,45 @@ describe('StepCaption', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Phase 1 of 3: P1 arrives. P1 is the only process, so it runs.',
     );
+  });
+});
+
+describe('StepCaption throttling', () => {
+  it('speaks at most once per CAPTION_THROTTLE_MS while running, then the latest', () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(
+        <StepCaption phases={RUN.phases} currentIndex={0} moment="running" />,
+      );
+      const status = screen.getByRole('status');
+      act(() => vi.advanceTimersByTime(CAPTION_THROTTLE_MS));
+
+      rerender(<StepCaption phases={RUN.phases} currentIndex={1} moment="running" />);
+      act(() => vi.advanceTimersByTime(0));
+      expect(status).toHaveTextContent(/^Phase 2 of 3/);
+
+      // Two more phases inside one window: nothing is said until it closes, then only
+      // the latest.
+      rerender(<StepCaption phases={RUN.phases} currentIndex={2} moment="running" />);
+      act(() => vi.advanceTimersByTime(CAPTION_THROTTLE_MS / 2));
+      expect(status).toHaveTextContent(/^Phase 2 of 3/);
+      act(() => vi.advanceTimersByTime(CAPTION_THROTTLE_MS));
+      expect(status).toHaveTextContent(/^Phase 3 of 3/);
+
+      // The end is said at once.
+      rerender(<StepCaption phases={RUN.phases} currentIndex={2} moment="done" />);
+      act(() => vi.advanceTimersByTime(0));
+      expect(status).toHaveTextContent(DONE_CAPTION);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the new phase at once even while the spoken copy waits', () => {
+    const { rerender } = render(
+      <StepCaption phases={RUN.phases} currentIndex={0} moment="running" />,
+    );
+    rerender(<StepCaption phases={RUN.phases} currentIndex={1} moment="running" />);
+    expect(screen.getByText('P2 preempts P1')).toBeVisible();
   });
 });

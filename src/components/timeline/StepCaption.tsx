@@ -1,6 +1,6 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
 import type { PhaseSummary } from '@/core/sim/result';
 import { cn } from '@/lib/cn';
@@ -61,16 +61,48 @@ export function stepCaption(
  * The phase, told large, next to the picture -- and the one thing a run says out loud.
  *
  * Vendored from Internet Visualizer (see VENDORED.md). Edits: the caption logic from its
- * `stage.ts` is inlined above, without the detail level or glossary links.
+ * `stage.ts` is inlined above, without the detail level or glossary links; and the
+ * spoken copy is a separate, throttled live region (below).
  *
- * Exactly one `role="status"` per view. A run moves the playhead sixty times a second; a
+ * Exactly one caption region per view. A run moves the playhead sixty times a second; a
  * live region fed any of that would be a stream of interruptions, so only the phase is
- * announced. `status` (polite) rather than `alert`: a new phase can wait for the reader.
- * The per-tick reason ("P3 runs: shortest remaining time") is the inspector's job.
+ * announced, and during playback at most once every `CAPTION_THROTTLE_MS`: at 4x speed a
+ * scheduling run can change phase several times a second, and a screen reader that is
+ * interrupted that often says nothing useful. The latest phase is always announced once
+ * the run settles (trailing edge), and the start and the end are announced at once.
+ * `status` (polite) rather than `alert`: a new phase can wait for the reader. The per-tick
+ * reason ("P3 runs: shortest remaining time") is the inspector's job.
  *
- * Memoized, and handed only discrete values: some screen readers announce any mutation
- * of a live region, not just a change of text.
+ * The visible caption updates at once; only what is spoken is throttled.
  */
+
+/** Shortest gap between two spoken captions while a run is moving. */
+export const CAPTION_THROTTLE_MS = 1000;
+
+/** The caption as one spoken sentence: "Phase 2 of 4: P1 arrives. P1 runs." */
+export function spokenCaption(caption: StepCaptionText): string {
+  return [
+    caption.step ? `${caption.step}: ` : '',
+    caption.title ? `${caption.title}. ` : '',
+    caption.text,
+  ].join('');
+}
+
+/** `text`, but changing at most once per `CAPTION_THROTTLE_MS` unless `immediate`. */
+function useThrottled(text: string, immediate: boolean): string {
+  const [spoken, setSpoken] = useState(text);
+  const last = useRef(0);
+  useEffect(() => {
+    const now = Date.now();
+    const wait = immediate ? 0 : Math.max(0, last.current + CAPTION_THROTTLE_MS - now);
+    const timer = setTimeout(() => {
+      last.current = Date.now();
+      setSpoken(text);
+    }, wait);
+    return () => clearTimeout(timer);
+  }, [text, immediate]);
+  return spoken;
+}
 
 export interface StepCaptionProps {
   phases: readonly PhaseSummary[];
@@ -90,10 +122,10 @@ export const StepCaption = memo(function StepCaption({
   className,
 }: StepCaptionProps) {
   const caption = stepCaption(phases, currentIndex, moment, question);
+  const spoken = useThrottled(spokenCaption(caption), moment !== 'running');
 
   return (
     <div
-      role="status"
       data-moment={moment}
       // Its height may be fixed by the view, so a long phase scrolls, and a scroll box of
       // text needs a tab stop of its own.
@@ -104,23 +136,24 @@ export const StepCaption = memo(function StepCaption({
         className,
       )}
     >
-      {caption.step ? (
-        <span className="text-accent text-small mb-0.5 block font-semibold tracking-wide">
-          {caption.step}
-          {/* Heard as one sentence, not "Phase 2 of 4P1 arrives...". */}
-          <span className="sr-only">: </span>
+      {/* Seen, not heard: the status region below speaks the same words, throttled. */}
+      <span aria-hidden="true" className="block">
+        {caption.step ? (
+          <span className="text-accent text-small mb-0.5 block font-semibold tracking-wide">
+            {caption.step}
+          </span>
+        ) : null}
+        {caption.title ? (
+          <span className="block font-semibold">{caption.title}</span>
+        ) : null}
+        <span
+          className={cn('block', caption.title && 'text-fg-secondary text-body mt-0.5')}
+        >
+          {caption.text}
         </span>
-      ) : null}
-      {caption.title ? (
-        <span className="block font-semibold">
-          {caption.title}
-          <span className="sr-only">. </span>
-        </span>
-      ) : null}
-      <span
-        className={cn('block', caption.title && 'text-fg-secondary text-body mt-0.5')}
-      >
-        {caption.text}
+      </span>
+      <span role="status" className="sr-only">
+        {spoken}
       </span>
     </div>
   );

@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   title: 'About',
   description:
     'What OS Visualizer models, what it leaves out, and how every algorithm is checked: textbook worked examples, property tests and brute-force oracles.',
+  alternates: { canonical: '/about' },
 };
 
 /*

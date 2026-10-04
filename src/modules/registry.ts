@@ -83,3 +83,10 @@ export const MODULES: readonly ModuleEntry[] = [
     phase: 2,
   },
 ];
+
+/** The entry for a module slug. Throws on an unknown slug: a typo in a route file. */
+export function moduleBySlug(slug: string): ModuleEntry {
+  const entry = MODULES.find((m) => m.slug === slug);
+  if (!entry) throw new Error(`No module "${slug}" in the registry`);
+  return entry;
+}

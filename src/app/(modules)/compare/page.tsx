@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: 'Compare schedulers',
   description:
     'Run one workload under two to four CPU scheduling policies at once, on a shared time axis, with the best metric in each row marked.',
+  alternates: { canonical: '/compare' },
 };
 
 export default function ComparePage() {

@@ -51,9 +51,7 @@ test('sync: find a lost update with the keyboard, then the mutex leaves one outc
   expect(errors).toEqual([]);
 });
 
-test('sync: a seeded random schedule replays from the URL', async ({
-  page,
-}) => {
+test('sync: a seeded random schedule replays from the URL', async ({ page }) => {
   await page.goto('/sync');
   await expect(async () => {
     await page.getByRole('radio', { name: 'Seeded random' }).check();

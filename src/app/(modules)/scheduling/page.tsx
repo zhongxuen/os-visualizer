@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: 'CPU Scheduling',
   description:
     'FCFS, SJF, SRTF, Priority, Round Robin and MLFQ, one tick at a time, with the reason for every scheduling decision.',
+  alternates: { canonical: '/scheduling' },
 };
 
 export default function SchedulingPage() {

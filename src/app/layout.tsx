@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
+  openGraph: { type: 'website', siteName: SITE_NAME, locale: 'en_GB' },
+  twitter: { card: 'summary_large_image' },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

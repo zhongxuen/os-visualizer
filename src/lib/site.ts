@@ -39,3 +39,16 @@ export function siteUrl(env: SiteEnv = process.env): string {
 
   return LOCAL_SITE_URL;
 }
+
+/** An absolute URL on this deployment, for the sitemap and robots.txt. */
+export function absoluteUrl(path: string, env: SiteEnv = process.env): string {
+  return `${siteUrl(env)}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+/**
+ * True on the production deployment only. A preview serves the same pages under a
+ * hostname that disappears when its branch merges, so it asks not to be indexed.
+ */
+export function isProductionDeployment(env: SiteEnv = process.env): boolean {
+  return env.VERCEL_ENV === 'production';
+}

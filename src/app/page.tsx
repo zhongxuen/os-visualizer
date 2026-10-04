@@ -1,8 +1,13 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { cn } from '@/lib/cn';
 import { SITE_DESCRIPTION, SITE_NAME } from '@/lib/site';
 import { MODULES, type ModuleEntry } from '@/modules/registry';
+
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
+};
 
 function ModuleCard({ module: m }: { module: ModuleEntry }) {
   const ready = m.status === 'ready';
