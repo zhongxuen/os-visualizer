@@ -59,7 +59,7 @@ export const MODULES: readonly ModuleEntry[] = [
     blurb:
       "FIFO, LRU, OPT and Clock over a reference string. Plot faults against frames and see Belady's anomaly.",
     number: 4,
-    status: 'planned',
+    status: 'ready',
     phase: 1,
   },
   {
