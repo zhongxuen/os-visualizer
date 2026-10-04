@@ -69,7 +69,7 @@ export function Checkpoint({ id }: { id: string }) {
             className={cn(
               'border-border text-small inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-md border px-3',
               'has-[:focus-visible]:outline-focus has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2',
-              answered && option.value === spec.answer && 'border-state-success border-2',
+              answered && option.value === spec.answer && 'border-state-ok border-2',
               answered && option.value === given && !correct && 'border-state-error',
             )}
           >

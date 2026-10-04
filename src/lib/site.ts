@@ -11,7 +11,7 @@
 export const SITE_NAME = 'OS Visualizer';
 
 export const SITE_DESCRIPTION =
-  'Operating system internals you can step through: CPU scheduling, address translation, page replacement and deadlock.';
+  'Operating system internals you can step through: CPU scheduling, address translation, page replacement, deadlock and synchronisation.';
 
 export interface SiteEnv {
   readonly NEXT_PUBLIC_SITE_URL?: string | undefined;

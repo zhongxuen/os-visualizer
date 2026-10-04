@@ -51,6 +51,15 @@ export const LESSONS: readonly LessonMeta[] = [
       'The four conditions, cycles in the graph, multi-instance resources, Banker’s algorithm, and recovery.',
     parts: 5,
   },
+  {
+    id: 'lesson.sync',
+    module: 'sync',
+    route: '/sync',
+    title: 'Synchronisation',
+    summary:
+      'A race on a shared counter, counting every interleaving, a test-and-set mutex, locks gone wrong, and producer/consumer with semaphores.',
+    parts: 5,
+  },
 ];
 
 export function lessonFor(module: string): LessonMeta {

@@ -54,7 +54,12 @@ export const LESSON_EXAMPLES: readonly DlExample[] = [
 /** What a tab's run depends on, so an example counts as loaded whatever the other tab holds. */
 function relevant(input: DlInput): unknown {
   return input.view === 'graph'
-    ? { view: input.view, graph: input.graph, method: input.method, recovery: input.recovery }
+    ? {
+        view: input.view,
+        graph: input.graph,
+        method: input.method,
+        recovery: input.recovery,
+      }
     : { view: input.view, bankers: input.bankers, query: input.query };
 }
 

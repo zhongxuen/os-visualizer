@@ -77,9 +77,9 @@ export const MODULES: readonly ModuleEntry[] = [
     route: '/sync',
     title: 'Synchronisation',
     blurb:
-      'Two threads race on a shared counter, then a mutex fixes it. Producer and consumer with semaphores.',
+      'Two threads race on a shared counter, then a mutex fixes it. Count every interleaving. Producer and consumer with semaphores.',
     number: 6,
-    status: 'planned',
+    status: 'ready',
     phase: 2,
   },
 ];

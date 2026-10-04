@@ -1,0 +1,70 @@
+<LessonStep n={1} title="A race on a shared counter" example="counter-race">
+
+Two threads share one variable, `counter`, and each adds 1 to it. The statement `counter++` looks like one step, but the processor runs it as three: **load** the value into a register, **add** 1 to the register, **store** the register back. Each thread has its own register.
+
+On one CPU, the scheduler can switch threads between any two of those steps. In this example T0 loads and adds, then T1 runs its whole increment, then T0 gets the CPU back. Step through and read each op in the inspector.
+
+When the result depends on how the threads happened to interleave, the program has a **race condition**. The few ops that touch the shared variable form a **critical section**.
+
+<Checkpoint id="race-store" />
+
+</LessonStep>
+
+<LessonStep n={2} title="Count every interleaving" example="counter-race">
+
+One bad run could be bad luck. The outcome histogram removes the luck. It runs every possible interleaving of the program to the end and groups them by how they end.
+
+Each thread here has three ops, so there are 20 ways to interleave them. Predict how many end with `counter = 2` before you read the histogram.
+
+Then press "Load one" beside an outcome to load one of its interleavings as a manual schedule, and step through it. You can also build a schedule yourself: choose Manual, then press 1 or 2 to run the next op of T0 or T1. Try to find a different interleaving that loses an update.
+
+<Checkpoint id="race-count" />
+
+</LessonStep>
+
+<LessonStep n={3} title="A mutex makes the increment atomic" example="counter-mutex">
+
+A **mutex** (a lock) lets only one thread into a critical section at a time. Here each thread wraps its increment in `lock m` and `unlock m`.
+
+The lock is built on **test-and-set**, an instruction that sets a flag to 1 and returns its old value in one indivisible step (OSTEP §28.7). If the old value was 0, the lock was free and the thread now holds it. If it was 1, another thread holds it, and the thread tries again: it **spins**.
+
+This example uses round robin with a 2-tick quantum, so T1 gets the CPU while T0 is inside its critical section. The histogram now shows a single outcome.
+
+<Checkpoint id="mutex-spin" />
+
+</LessonStep>
+
+<LessonStep n={4} title="When locks go wrong" example="forgotten-unlock">
+
+A lock fixes a race only if it is used correctly. In the first example T0 takes the lock and finishes without releasing it. If T0 gets there first, T1 waits for a lock that nobody will ever free. There is no cycle here, so the run is reported as stuck rather than deadlocked.
+
+The second example is the classic **deadlock**. T0 locks A then B, and T1 locks B then A. If each takes its first lock before the other takes its second, both wait forever. The histogram shows how many interleavings end that way. Taking every lock in one agreed order makes the cycle impossible. The Deadlock module looks at the same situation as a resource-allocation graph.
+
+<Example id="lock-order" />
+
+</LessonStep>
+
+<LessonStep n={5} title="Producer and consumer with semaphores" example="prodcons-1">
+
+A **semaphore** is a counter with two operations. **wait** (also called P) takes one unit, or puts the thread to sleep if the value is 0. **signal** (also called V) adds one unit, or wakes the first sleeper.
+
+The producer/consumer problem shares a bounded buffer. The producer waits on `empty`, the number of free slots, and signals `full`. The consumer does the opposite, and a mutex guards the buffer itself. The variable `count` is the number of items in the buffer, and it must stay between 0 and the buffer size.
+
+The second example takes the mutex before waiting on the semaphore. A consumer that finds the buffer empty then sleeps while holding the mutex, and the producer can never get in to fill it.
+
+<Checkpoint id="prodcons-sleep" />
+
+<Example id="prodcons-broken" />
+
+<RealSystems sources={[
+  { title: 'futex(7), Linux manual page', url: 'https://man7.org/linux/man-pages/man7/futex.7.html' },
+  { title: 'Linux kernel documentation: Generic Mutex Subsystem', url: 'https://docs.kernel.org/locking/mutex-design.html' },
+]}>
+
+Real locks rarely spin for long. On Linux, a user-space mutex is built on a **futex**: taking a free lock is one atomic instruction with no system call, and a thread that finds it held asks the kernel to put it to sleep until the holder wakes it.
+
+The kernel's own mutexes spin briefly while the holder is still running on another CPU, since it will probably release the lock soon, and sleep otherwise. This model has one CPU and keeps the two ideas apart: the mutex only spins, and the semaphore only sleeps.
+
+</RealSystems>
+
+</LessonStep>

@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { DL_RULES } from '@/core/deadlock/rules';
 import { REPL_RULES } from '@/core/replace/rules';
 import { SCHED_RULES } from '@/core/sched/rules';
+import { SYNC_RULES } from '@/core/sync/rules';
 import { VM_RULES } from '@/core/vm/rules';
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ const CONVENTIONS: readonly {
   { id: 'conventions-vm', title: 'Address translation', rules: VM_RULES },
   { id: 'conventions-repl', title: 'Page replacement', rules: REPL_RULES },
   { id: 'conventions-dl', title: 'Deadlock', rules: DL_RULES },
+  { id: 'conventions-sync', title: 'Synchronisation', rules: SYNC_RULES },
 ];
 
 function Section({

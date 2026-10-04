@@ -8,6 +8,7 @@ import { DL_RULES } from '@/core/deadlock/rules';
 import { REPL_RULES } from '@/core/replace/rules';
 import { scenarios } from '@/core/scenarios';
 import { SCHED_RULES } from '@/core/sched/rules';
+import { SYNC_RULES } from '@/core/sync/rules';
 import { VM_RULES } from '@/core/vm/rules';
 
 /**
@@ -31,6 +32,7 @@ const RULES: readonly { id: string }[] = [
   ...VM_RULES,
   ...REPL_RULES,
   ...DL_RULES,
+  ...SYNC_RULES,
 ];
 
 describe('docs/ACCURACY.md', () => {

@@ -76,7 +76,11 @@ export function victimCheckpoint(
 }
 
 /** "Is the next reference a hit?", held on the last event of the reference before. */
-export function hitCheckpoint(id: string, example: string, reference: number): CheckpointSpec {
+export function hitCheckpoint(
+  id: string,
+  example: string,
+  reference: number,
+): CheckpointSpec {
   const run = runOf(example);
   const first = run.events.findIndex((e) => e.state.index === reference);
   if (first < 1) throw new Error(`Reference ${reference} needs one before it`);

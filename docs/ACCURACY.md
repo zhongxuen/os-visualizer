@@ -238,7 +238,7 @@ Implemented in `src/core/deadlock/`.
 | `osc10.8.8.2` | OSC 10th ed. | §8.8.2 | Resource Preemption | yes |
 | `osc10.7.1.3` | OSC 10th ed. | §7.1.3 | The Dining-Philosophers Problem | listed |
 | `ostep.32` | OSTEP v1.10 | ch. 32 | [Common Concurrency Problems](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-bugs.pdf) | listed |
-| `ostep.32.3` | OSTEP v1.10 | §32.3 | [Deadlock Bugs](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-bugs.pdf) | listed |
+| `ostep.32.3` | OSTEP v1.10 | §32.3 | [Deadlock Bugs](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-bugs.pdf) | yes |
 
 ### Conventions (`src/core/deadlock/rules.ts`)
 
@@ -258,6 +258,57 @@ Implemented in `src/core/deadlock/`.
 
 ---
 
+## Synchronisation
+
+Implemented in `src/core/sync/`. A program is a few threads, each a list of micro-ops
+(`load`, `add`, `store`, `lock`, `unlock`, `wait`, `signal`, `yield`) over shared
+variables, test-and-set mutexes and semaphores. `interleave()` runs it one op per tick
+under a manual, round-robin or seeded-random schedule; `explore()` runs every
+interleaving and groups them by how they end.
+
+`explore()` counts with a memoised search over machine states, and
+`tests/oracle/sync.test.ts` checks every count against a naive enumeration of every
+schedule, on every preset and on generated programs. Property tests check that at most
+one thread is ever inside a mutex-guarded critical section, that a semaphore's value is
+always its initial value + signals − completed waits, and that sleeping threads never run.
+
+### Citations
+
+| Id | Source | Where | Title | Cited by a step |
+| --- | --- | --- | --- | --- |
+| `ostep.26` | OSTEP v1.10 | ch. 26 | [Concurrency: An Introduction](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf) | yes |
+| `ostep.26.3` | OSTEP v1.10 | §26.3 | [Why It Gets Worse: Shared Data](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf) | listed |
+| `ostep.26.4` | OSTEP v1.10 | §26.4 | [The Heart Of The Problem: Uncontrolled Scheduling](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf) | yes |
+| `ostep.26.5` | OSTEP v1.10 | §26.5 | [The Wish For Atomicity](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf) | yes |
+| `ostep.28` | OSTEP v1.10 | ch. 28 | [Locks](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-locks.pdf) | listed |
+| `ostep.28.1` | OSTEP v1.10 | §28.1 | [Locks: The Basic Idea](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-locks.pdf) | listed |
+| `ostep.28.7` | OSTEP v1.10 | §28.7 | [Building Working Spin Locks with Test-And-Set](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-locks.pdf) | yes |
+| `ostep.31` | OSTEP v1.10 | ch. 31 | [Semaphores](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-sema.pdf) | listed |
+| `ostep.31.1` | OSTEP v1.10 | §31.1 | [Semaphores: A Definition](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-sema.pdf) | yes |
+| `ostep.31.4` | OSTEP v1.10 | §31.4 | [The Producer/Consumer (Bounded Buffer) Problem](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-sema.pdf) | listed |
+
+The lock-ordering preset also cites `ostep.32.3`, listed under Deadlock.
+
+### Conventions (`src/core/sync/rules.ts`)
+
+| Rule | What the model does |
+| --- | --- |
+| `sync.tick` | One CPU: on each tick exactly one thread runs exactly one micro-op. A thread can be interrupted between any two ops, never in the middle of one. |
+| `sync.registers` | Each thread has its own registers, starting at 0. load and store are the only ops that touch shared memory; add changes only the register. So counter++ is three ops, as in OSTEP Figure 26.7, and a thread can be interrupted between them. |
+| `sync.tas` | A mutex is a test-and-set spin lock. lock on a free mutex takes it in one tick. lock on a held mutex spins: the tick is spent, nothing changes, and the same lock runs again next time. |
+| `sync.unlock.owner` | Only the thread holding a mutex may unlock it. Any other unlock is an error, and the run stops. |
+| `sync.sem.value` | A semaphore’s value never goes below 0. wait on a positive value decrements it; wait on 0 puts the thread to sleep at the back of the semaphore’s FIFO queue. OSTEP’s implementation lets the value go negative to count the sleepers. Here the value stops at 0 and the queue length is that count. |
+| `sync.sem.signal` | signal wakes the first sleeper, which completes its wait without the value changing. With nobody asleep, signal adds 1 to the value. Either way, value = initial value + signals − completed waits. |
+| `sync.manual` | A manual schedule may pick only a thread that can make progress: not finished, not asleep, and not about to spin. The first pick that can’t run ends the run. |
+| `sync.rr` | Round robin gives T0, T1, … the CPU in turn for up to a quantum of ticks each. A thread gives it up early when it finishes, sleeps or yields. A spinner keeps its turn and spends it spinning; finished and sleeping threads are skipped. |
+| `sync.random` | Seeded random picks uniformly, each tick, among the threads that are ready or spinning, using the seed shown. The same seed gives the same run. |
+| `sync.stuck` | A run ends as stuck when no thread can make progress: each unfinished thread is asleep, or spinning on a lock whose holder can’t release it. It is called a deadlock when two or more threads wait and none of them waits for a lock kept by a thread that has finished. A finished thread that kept its lock (a forgotten unlock) leaves the waiter stuck with no cycle, so that case is reported as stuck, not deadlocked. |
+| `sync.limit` | Round robin and random runs stop after 300 ticks. |
+| `sync.explore` | Exploration counts every sequence of picks among threads that can make progress, to the end. Spins are left out: a spin changes nothing, so it cannot change how a run ends. |
+| `sync.lost` | A store is marked as a lost update when another thread stored to the same variable after this thread loaded it. |
+
+---
+
 ## Real systems, in the lessons
 
 Each lesson ends with a "Real systems" box that describes what real kernels do. Nothing in
@@ -269,6 +320,8 @@ these boxes is simulated. Their sources:
 | Scheduling | Windows schedules threads preemptively by 32 priority levels, with temporary boosts | [Microsoft Learn: Scheduling Priorities](https://learn.microsoft.com/en-us/windows/win32/procthread/scheduling-priorities) |
 | Translation | x86-64 uses four levels of page table for 48-bit addresses, and five for 57-bit addresses | [Linux kernel documentation: Page Tables](https://docs.kernel.org/mm/page_tables.html); [Linux kernel documentation: 5-level paging (x86-64)](https://docs.kernel.org/arch/x86/x86_64/5level-paging.html) |
 | Replacement | Linux approximates LRU with active and inactive lists, and since 6.1 can use the multi-generational LRU | [Mel Gorman, Understanding the Linux Virtual Memory Manager, ch. 10](https://www.kernel.org/doc/gorman/html/understand/understand013.html); [Linux kernel documentation: Multi-Gen LRU](https://docs.kernel.org/admin-guide/mm/multigen_lru.html) |
+| Synchronisation | Linux user-space locks are built on futexes: no system call when the lock is free, and the kernel puts a waiter to sleep | [futex(7), Linux manual page](https://man7.org/linux/man-pages/man7/futex.7.html) |
+| Synchronisation | Kernel mutexes spin briefly while the holder runs on another CPU (optimistic spinning), and sleep otherwise | [Linux kernel documentation: Generic Mutex Subsystem](https://docs.kernel.org/locking/mutex-design.html) |
 | Deadlock | General-purpose kernels prevent deadlock by lock ordering, which Linux checks with lockdep, rather than run Banker's algorithm | [Linux kernel documentation: lockdep](https://docs.kernel.org/locking/lockdep-design.html); [OSTEP ch. 32: Common Concurrency Problems](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-bugs.pdf) |
 
 ## Deliberate simplifications
@@ -298,3 +351,12 @@ A gap that is only in this file is a gap that is hidden.
   (`dl.recover.preempt`); OSC10 leaves how far to roll back open.
 - **Mutual exclusion and no preemption are assumed, not checked** (`dl.coffman`): a graph
   cannot show them.
+- **Synchronisation runs on one CPU** (`sync.tick`): a thread is interrupted only between
+  micro-ops, never inside one, and there are no memory-ordering effects or caches.
+- **The mutex only spins and the semaphore only sleeps** (`sync.tas`, `sync.sem.value`).
+  Real locks spin briefly, then sleep. A semaphore's value stops at 0 instead of going
+  negative to count sleepers, as OSTEP's implementation does; the queue length is that
+  count.
+- **Exploration leaves spins out** (`sync.explore`): a spin changes no state, so it cannot
+  change how a run ends, and counting it would make the number of interleavings
+  infinite.

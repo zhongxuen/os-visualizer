@@ -8,6 +8,7 @@ import * as compareLesson from '@/modules/compare/lesson';
 import * as deadlockLesson from '@/modules/deadlock/lesson';
 import * as replacementLesson from '@/modules/replacement/lesson';
 import * as schedulingLesson from '@/modules/scheduling/lesson';
+import * as syncLesson from '@/modules/sync/lesson';
 import * as translationLesson from '@/modules/translation/lesson';
 
 import { LESSONS } from './catalog';
@@ -23,21 +24,30 @@ import { LESSONS } from './catalog';
 
 const BY_MODULE: Record<
   string,
-  { LESSON_EXAMPLES: readonly LessonExample[]; LESSON_CHECKPOINTS: readonly CheckpointSpec[] }
+  {
+    LESSON_EXAMPLES: readonly LessonExample[];
+    LESSON_CHECKPOINTS: readonly CheckpointSpec[];
+  }
 > = {
   scheduling: schedulingLesson,
   compare: compareLesson,
   translation: translationLesson,
   replacement: replacementLesson,
   deadlock: deadlockLesson,
+  sync: syncLesson,
 };
 
 function mdx(module: string): string {
-  return readFileSync(join(process.cwd(), 'src/content/lessons', `${module}.mdx`), 'utf8');
+  return readFileSync(
+    join(process.cwd(), 'src/content/lessons', `${module}.mdx`),
+    'utf8',
+  );
 }
 
 function ids(source: string, tag: string): string[] {
-  return [...source.matchAll(new RegExp(`<${tag}\\s+id="([^"]+)"`, 'g'))].map((m) => m[1]!);
+  return [...source.matchAll(new RegExp(`<${tag}\\s+id="([^"]+)"`, 'g'))].map(
+    (m) => m[1]!,
+  );
 }
 
 describe('lesson catalogue', () => {
@@ -81,8 +91,13 @@ describe('lesson catalogue', () => {
 
       it('gives every checkpoint an answer among its options, a reason and a hold', () => {
         for (const c of LESSON_CHECKPOINTS) {
-          expect(c.options.map((o) => o.value), c.id).toContain(c.answer);
-          expect(new Set(c.options.map((o) => o.value)).size, c.id).toBe(c.options.length);
+          expect(
+            c.options.map((o) => o.value),
+            c.id,
+          ).toContain(c.answer);
+          expect(new Set(c.options.map((o) => o.value)).size, c.id).toBe(
+            c.options.length,
+          );
           expect(c.options.length, c.id).toBeGreaterThanOrEqual(2);
           expect(c.reason.length, c.id).toBeGreaterThan(10);
           expect(Number.isInteger(c.holdAt) && c.holdAt >= 0, c.id).toBe(true);
@@ -145,6 +160,19 @@ describe('checkpoint answers match the textbooks', () => {
       'cycle-multi': 'not-deadlocked', // OSC10 Figure 8.6
       'bankers-safe': 'safe', // OSC10 §8.6.3.3
       'bankers-t0': 'refused', // OSC10 §8.6.3.3
+    });
+  });
+
+  it('sync', () => {
+    expect(answers(syncLesson.LESSON_CHECKPOINTS)).toEqual({
+      // OSTEP §26.4: T0 stores its stale register over T1's update.
+      'race-store': '1',
+      // 2 of 20 interleavings give counter = 2.
+      'race-count': 'few',
+      // OSTEP §28.7: test-and-set returns 1, so the thread spins.
+      'mutex-spin': 'spin',
+      // OSTEP §31.4: wait on 0 sleeps.
+      'prodcons-sleep': 'sleep',
     });
   });
 });

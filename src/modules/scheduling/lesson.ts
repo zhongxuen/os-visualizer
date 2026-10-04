@@ -54,7 +54,11 @@ export function runsFrom(run: SchedRun, t: number): { pid: string; reason: strin
 }
 
 /** "Which process runs from t = …?", held one tick before, so the decision is unseen. */
-export function whoRunsCheckpoint(id: string, example: string, t: number): CheckpointSpec {
+export function whoRunsCheckpoint(
+  id: string,
+  example: string,
+  t: number,
+): CheckpointSpec {
   const { run, workload } = runOf(example);
   const { pid, reason } = runsFrom(run, t);
   return {

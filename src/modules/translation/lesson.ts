@@ -33,7 +33,9 @@ function runInputOf(input: VmInput): VmInput {
 /** The example the input is, comparing only what the run depends on. */
 export function activeExample(input: VmInput): string | null {
   const key = canonicalJson(runInputOf(input));
-  return LESSON_EXAMPLES.find((e) => canonicalJson(runInputOf(e.input)) === key)?.id ?? null;
+  return (
+    LESSON_EXAMPLES.find((e) => canonicalJson(runInputOf(e.input)) === key)?.id ?? null
+  );
 }
 
 function runOf(example: string): { run: VmRun; preset: VmPreset } {
@@ -49,7 +51,11 @@ function accessEvents(run: VmRun, access: number): { start: number; events: VmEv
 }
 
 /** "Will the TLB hit or miss?", held on the access's split. */
-export function tlbCheckpoint(id: string, example: string, access: number): CheckpointSpec {
+export function tlbCheckpoint(
+  id: string,
+  example: string,
+  access: number,
+): CheckpointSpec {
   const { run, preset } = runOf(example);
   const { start, events } = accessEvents(run, access);
   const lookup = events.find((e) => e.kind === 'vm.tlbHit' || e.kind === 'vm.tlbMiss')!;
@@ -69,7 +75,11 @@ export function tlbCheckpoint(id: string, example: string, access: number): Chec
 }
 
 /** "Which physical address?", with the untranslated address and near misses as options. */
-export function paCheckpoint(id: string, example: string, access: number): CheckpointSpec {
+export function paCheckpoint(
+  id: string,
+  example: string,
+  access: number,
+): CheckpointSpec {
   const { run, preset } = runOf(example);
   const { start, events } = accessEvents(run, access);
   const physical = events.find((e) => e.kind === 'vm.physical');
@@ -93,7 +103,11 @@ export function paCheckpoint(id: string, example: string, access: number): Check
 }
 
 /** "How many memory references will this access make?" */
-export function refsCheckpoint(id: string, example: string, access: number): CheckpointSpec {
+export function refsCheckpoint(
+  id: string,
+  example: string,
+  access: number,
+): CheckpointSpec {
   const { run } = runOf(example);
   const { start, events } = accessEvents(run, access);
   const last = events[events.length - 1]!;
