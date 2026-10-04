@@ -12,6 +12,7 @@ import { deadlockScenarios } from './deadlock/scenarios';
 import type { OsRun } from './events/types';
 import { replaceScenarios } from './replace/scenarios';
 import { schedScenarios } from './sched/scenarios';
+import { syncScenarios } from './sync/scenarios';
 import { vmScenarios } from './vm/scenarios';
 
 export interface Scenario {
@@ -26,4 +27,5 @@ export const scenarios: readonly Scenario[] = [
   ...vmScenarios,
   ...replaceScenarios,
   ...deadlockScenarios,
+  ...syncScenarios,
 ];

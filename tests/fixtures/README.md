@@ -40,3 +40,6 @@ Module agents append their own rows only.
 | Detection, T0–T4 over (7, 2, 6), Allocation 010,200,303,211,002, Request 000,202,000,100,002, Available 000: not deadlocked (order validated) | Silberschatz, *Operating System Concepts* | 10th | §8.7.2 | `deadlock/textbook.test.ts` |
 | Then T2 requests one more C: deadlocked set {T1, T2, T3, T4} | Silberschatz, *Operating System Concepts* | 10th | §8.7.2 | `deadlock/textbook.test.ts` |
 | Resource-allocation graph with a cycle but no deadlock (Figure 8.6), and with a multi-instance deadlock (Figure 8.5); threads renumbered from T0 | Silberschatz, *Operating System Concepts* | 10th | §8.3.2 | `deadlock/textbook.test.ts` |
+| Counter race (Figure 26.7), counter = 50: T1 load/add, T2 load/add/store, T1 store → 51 (lost update); serial → 52; book threads 1, 2 are T0, T1 | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 26, §26.4 | `sync/textbook.test.ts` |
+| Same increment, all 20 interleavings: 2 correct, 18 lose an update; inside a test-and-set lock every interleaving is correct | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 26, §26.4; ch. 28, §28.7 | `sync/textbook.test.ts` |
+| Producer/consumer with empty, full and a mutex, buffer of 1 and 2: never under- or overflows, ends with count = 0; the mutex outside the waits can deadlock | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 31, §31.4 | `sync/textbook.test.ts` |
