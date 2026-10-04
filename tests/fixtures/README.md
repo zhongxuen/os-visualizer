@@ -25,3 +25,11 @@ Module agents append their own rows only.
 | Linear page table, 32-bit space, 4 KB pages, 4-byte PTEs: 4 MB | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 18, §18.2 | `vm/ostep.test.ts` |
 | TLB, ten ints from VA 100, 16-byte pages: miss, hit, hit, miss, hit, hit, hit, miss, hit, hit = 70%; second pass all hits | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 19, §19.2 | `vm/ostep.test.ts` |
 | Two-level, 16 KB space, 64-byte pages: VA 0x3F80 → PD index 15, PT index 14 → PFN 55 → PA 0x0DC0; 3 table pages instead of 16 | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 20, §20.3 | `vm/ostep.test.ts` |
+| Page replacement, 7,0,1,2,0,3,0,4,2,3,0,3,2,1,2,0,1,7,0,1 with 3 frames: FIFO 15 faults (Figure 10.12) | Silberschatz, *Operating System Concepts* | 10th | §10.4.2 | `replace/textbook.test.ts` |
+| Same string: OPT 9 faults (Figure 10.14) | Silberschatz, *Operating System Concepts* | 10th | §10.4.3 | `replace/textbook.test.ts` |
+| Same string: LRU 12 faults (Figure 10.15) | Silberschatz, *Operating System Concepts* | 10th | §10.4.4 | `replace/textbook.test.ts` |
+| Belady's anomaly, 1,2,3,4,1,2,5,1,2,3,4,5 under FIFO: 9 faults with 3 frames, 10 with 4 (Figure 10.13) | Silberschatz, *Operating System Concepts* | 10th | §10.4.2 | `replace/textbook.test.ts` |
+| 0,1,2,0,1,3,0,3,1,2,1, cache of 3: OPT 6 hits = 54.5% (Figure 22.1) | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 22, §22.2 | `replace/textbook.test.ts` |
+| Same string: FIFO 4 hits = 36.4% (Figure 22.2) | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 22, §22.3 | `replace/textbook.test.ts` |
+| Same string: LRU 6 hits = 54.5% (Figure 22.5) | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 22, §22.5 | `replace/textbook.test.ts` |
+| Looping-sequential workload: LRU and FIFO miss on every reference with fewer frames than pages | Arpaci-Dusseau, *OSTEP* | v1.10 | ch. 22, §22.6 | `replace/textbook.test.ts` |

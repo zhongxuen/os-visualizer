@@ -109,10 +109,20 @@ describe('createRun', () => {
     (unit) => {
       const run = createRun<OsEvent>({ unit });
       run.phase('start', 'Start', 'd');
-      run.emit({ kind: 'replace.placeholder', id: 'a', label: 'a', citation: 'ostep.4' });
+      run.emit({
+        kind: 'deadlock.placeholder',
+        id: 'a',
+        label: 'a',
+        citation: 'ostep.4',
+      });
       run.advance();
       run.phase('next', 'Next', 'd');
-      run.emit({ kind: 'replace.placeholder', id: 'b', label: 'b', citation: 'ostep.4' });
+      run.emit({
+        kind: 'deadlock.placeholder',
+        id: 'b',
+        label: 'b',
+        citation: 'ostep.4',
+      });
       run.emit({
         kind: 'deadlock.placeholder',
         id: 'c',
