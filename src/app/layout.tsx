@@ -1,5 +1,6 @@
 import { Analytics } from '@vercel/analytics/next';
 import type { Metadata } from 'next';
+import { Geist, Geist_Mono } from 'next/font/google';
 import type { ReactNode } from 'react';
 
 import { SiteFooter } from '@/components/shell/SiteFooter';
@@ -8,6 +9,12 @@ import { PRE_PAINT_SCRIPT } from '@/components/shell/themeScript';
 import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from '@/lib/site';
 
 import './globals.css';
+
+/** UI and prose: the series font (docs/UIUX.md §5.2). */
+const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
+
+/** Every number the simulation produces, with tabular figures (the `num` utility). */
+const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
@@ -21,7 +28,11 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
   return (
     // `suppressHydrationWarning` because the script below sets `data-theme` on <html>
     // before React hydrates (Next guide: preventing flash before hydration).
-    <html lang="en" className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: PRE_PAINT_SCRIPT }} />
       </head>

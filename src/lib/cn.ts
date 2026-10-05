@@ -16,7 +16,9 @@ export const TYPE_SCALE = [
   'lead',
   'story',
   'title',
+  'headline',
   'display',
+  'hero',
 ];
 export const TARGET_SIZES = ['target', 'target-floor'];
 

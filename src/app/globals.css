@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 @import '../styles/tokens.css';
 @import '../styles/process.css';
+@import '../styles/motion.css';
 
 /*
  * All colour lives in ../styles/tokens.css; nothing below, and nothing in any component,
@@ -21,9 +22,63 @@
 }
 
 body {
-  background: var(--bg-base);
-  color: var(--text-primary);
+  background: var(--bg);
+  color: var(--fg);
   font-family: var(--font-sans);
+}
+
+/*
+ * Every number the simulation produces -- ticks, PIDs, addresses, bits, matrices,
+ * metrics -- is Geist Mono with tabular figures, so a column of values does not jitter
+ * while they change during playback (§5.2). `num` is that pairing in one class;
+ * Tailwind's own `tabular-nums` is there for a number set in the sans.
+ */
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+/* Prose line length (§5.2). */
+@utility measure {
+  max-width: 68ch;
+}
+
+/*
+ * A panel (§5.3): 1px border, 6px radius, no shadow in light, a 1px inner highlight in
+ * dark. The border is `--rule`, the soft divider: a panel is a grouping, not a control.
+ */
+@utility panel {
+  background-color: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-panel);
+  box-shadow: inset 0 1px 0 var(--panel-highlight);
+}
+
+/*
+ * A ruler as a section divider (§5.3): a 1px rule with a tick every 8px, echoing the
+ * Gantt axis. Gradients only; decorative, so it uses `--rule`, not `--border`.
+ */
+@utility rule-ticks {
+  height: 5px;
+  background-image:
+    linear-gradient(var(--rule), var(--rule)),
+    repeating-linear-gradient(90deg, var(--rule) 0 1px, transparent 1px 8px);
+  background-size:
+    100% 1px,
+    100% 4px;
+  background-position:
+    0 100%,
+    0 0;
+  background-repeat: no-repeat;
+}
+
+/* The faint 8px tick grid behind visuals only, never behind text (§5.1). */
+@utility bg-tick-grid {
+  background-color: var(--surface);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 8px 8px;
 }
 
 ::selection {

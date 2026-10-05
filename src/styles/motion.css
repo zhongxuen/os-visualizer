@@ -1,0 +1,181 @@
+/*
+ * Keyframes, in two groups (docs/UIUX.md §6).
+ *
+ * 1. **Step motion**, driven by the primitives in `src/components/motion/`. Each of
+ *    these runs once, on a forward step only, for a duration the primitive computes
+ *    (`--flash-dur`, `--draw-dur`): `min(token, 0.6 x step interval)`, or not at all under
+ *    reduced motion and at speeds 4-5. The end frame is the element's resting style, so a
+ *    paused frame shows the same thing as a finished animation.
+ *
+ * 2. **Idle loops** for `ModuleGlyph`, the small picture of each module on cards, the
+ *    module header and the learning path (§7.1). Decorative only: every one sits inside
+ *    an `aria-hidden` glyph, and nothing is legible only while it moves. Loop lengths are
+ *    seconds rather than the `--dur-*` tokens on purpose: those describe UI transitions,
+ *    and an ambient loop is not one.
+ *
+ * Reduced motion needs no special case. `globals.css` collapses every animation to a
+ * single 0.01ms pass, which lands each idle loop on its last frame; every idle keyframe
+ * below therefore ends where it starts, on a frame that reads as a still picture.
+ *
+ * Only `transform`, `opacity`, `stroke-dashoffset` and `background-color` are animated
+ * (§6.1 rule 7: no layout shift).
+ */
+
+/* --- 1. Step motion ------------------------------------------------------- */
+
+/* A one-shot background pulse on a value that changed (`<Flash>`). */
+@keyframes osv-flash {
+  0% {
+    background-color: color-mix(
+      in oklab,
+      var(--flash-colour, var(--accent)) 28%,
+      transparent
+    );
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.motion-flash {
+  animation: osv-flash var(--flash-dur, var(--dur-3)) var(--ease-out) 1 both;
+}
+
+/* An SVG path drawing itself in (`<DrawPath>`). The path carries `pathLength="1"`. */
+@keyframes osv-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.motion-draw {
+  stroke-dasharray: 1;
+  animation: osv-draw var(--draw-dur, var(--dur-3)) var(--ease-inout) 1 both;
+}
+
+/* --- 2. Idle loops for ModuleGlyph ---------------------------------------- */
+
+@theme {
+  /* Scheduling: Gantt bars filling one after another from a fixed left edge. */
+  --animate-idle-gantt: idle-gantt 4.8s var(--ease-inout) infinite;
+  /* Compare: two columns of bars growing out of phase. */
+  --animate-idle-compare: idle-compare 4s var(--ease-inout) infinite;
+  /* Translation: an address token travelling from the page table to the frame. */
+  --animate-idle-shuttle: idle-shuttle 3.6s var(--ease-inout) infinite;
+  /* Replacement: a page sliding into a frame, then out again. */
+  --animate-idle-slide: idle-slide 4.2s var(--ease-inout) infinite;
+  /* Deadlock: dashes travelling round the wait-for cycle. */
+  --animate-idle-cycle: idle-cycle 2.4s linear infinite;
+  /* Sync: two threads taking turns at the lock. */
+  --animate-idle-turns: idle-turns 3.2s steps(1, end) infinite;
+  /* A cursor sweeping a timeline: the shared "something is being stepped" hint. */
+  --animate-idle-sweep: idle-sweep 6s linear infinite;
+  /* A soft blink for the current-step marker. */
+  --animate-idle-pulse: idle-pulse 2.8s var(--ease-inout) infinite;
+
+  /*
+   * Each bar sets `--i` (0, 1, 2...) so the bars fill in turn. The bar's own width is its
+   * full burst; the loop scales it from a fixed left origin (set by the glyph).
+   */
+  @keyframes idle-gantt {
+    0%,
+    100% {
+      transform: scaleX(1);
+    }
+    10% {
+      transform: scaleX(0.08);
+    }
+    60%,
+    90% {
+      transform: scaleX(1);
+    }
+  }
+
+  @keyframes idle-compare {
+    0%,
+    100% {
+      transform: scaleY(1);
+    }
+    50% {
+      transform: scaleY(0.45);
+    }
+  }
+
+  @keyframes idle-shuttle {
+    0%,
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    45%,
+    55% {
+      transform: translateX(var(--idle-distance, 32px));
+      opacity: 1;
+    }
+  }
+
+  @keyframes idle-slide {
+    0%,
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    35% {
+      transform: translateY(var(--idle-distance, -12px));
+      opacity: 0;
+    }
+    40% {
+      transform: translateY(calc(var(--idle-distance, -12px) * -1));
+      opacity: 0;
+    }
+    70% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Direction comes from the sign of `--idle-dashoffset`; the dash pattern stays put. */
+  @keyframes idle-cycle {
+    0%,
+    100% {
+      stroke-dashoffset: 0;
+    }
+    99.999% {
+      stroke-dashoffset: var(--idle-dashoffset, -12);
+    }
+  }
+
+  /* `steps(1)`: the lock is held or it isn't. The second thread sets a negative delay. */
+  @keyframes idle-turns {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  @keyframes idle-sweep {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(var(--idle-distance, 48px));
+    }
+  }
+
+  @keyframes idle-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+}

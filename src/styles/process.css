@@ -1,8 +1,8 @@
 /*
  * Process fills with patterns, for HTML elements (chips, queue entries, table cells).
  *
- * `<span class="proc-fill" data-proc="3">` draws slot 3's colour with slot 3's pattern
- * and an ink outline. The slot is `pid % 10`; `src/components/shell/processPalette.ts`
+ * `<span class="proc-fill" data-proc="3">` draws slot 3's pale fill with slot 3's pattern
+ * and its strong edge (`--proc-edge-3`, >= 3:1 on every surface in both themes). The slot is `pid % 10`; `src/components/shell/processPalette.ts`
  * holds the same ten patterns by name, and `ProcessPatternDefs` draws them as SVG
  * `<pattern>`s for charts. The two are kept in step by `processPalette.test.ts`.
  *
@@ -14,17 +14,19 @@
   background-color: var(--proc-fill, var(--proc-0));
   background-image: var(--proc-pattern, none);
   background-size: var(--proc-pattern-size, auto);
-  border: 1px solid var(--proc-ink);
+  border: 1px solid var(--proc-edge, var(--proc-ink));
   color: var(--proc-ink);
 }
 
 .proc-fill[data-proc='0'] {
   --proc-fill: var(--proc-0);
+  --proc-edge: var(--proc-edge-0);
   --proc-pattern: none;
 }
 
 .proc-fill[data-proc='1'] {
   --proc-fill: var(--proc-1);
+  --proc-edge: var(--proc-edge-1);
   --proc-pattern: repeating-linear-gradient(
     45deg,
     var(--proc-stroke) 0 2px,
@@ -34,6 +36,7 @@
 
 .proc-fill[data-proc='2'] {
   --proc-fill: var(--proc-2);
+  --proc-edge: var(--proc-edge-2);
   --proc-pattern: repeating-linear-gradient(
     -45deg,
     var(--proc-stroke) 0 2px,
@@ -43,6 +46,7 @@
 
 .proc-fill[data-proc='3'] {
   --proc-fill: var(--proc-3);
+  --proc-edge: var(--proc-edge-3);
   --proc-pattern: repeating-linear-gradient(
     0deg,
     var(--proc-stroke) 0 2px,
@@ -52,6 +56,7 @@
 
 .proc-fill[data-proc='4'] {
   --proc-fill: var(--proc-4);
+  --proc-edge: var(--proc-edge-4);
   --proc-pattern: repeating-linear-gradient(
     90deg,
     var(--proc-stroke) 0 2px,
@@ -61,12 +66,14 @@
 
 .proc-fill[data-proc='5'] {
   --proc-fill: var(--proc-5);
+  --proc-edge: var(--proc-edge-5);
   --proc-pattern: radial-gradient(circle, var(--proc-stroke) 1.25px, transparent 1.75px);
   --proc-pattern-size: 6px 6px;
 }
 
 .proc-fill[data-proc='6'] {
   --proc-fill: var(--proc-6);
+  --proc-edge: var(--proc-edge-6);
   --proc-pattern:
     repeating-linear-gradient(45deg, var(--proc-stroke) 0 1.5px, transparent 1.5px 7px),
     repeating-linear-gradient(-45deg, var(--proc-stroke) 0 1.5px, transparent 1.5px 7px);
@@ -74,6 +81,7 @@
 
 .proc-fill[data-proc='7'] {
   --proc-fill: var(--proc-7);
+  --proc-edge: var(--proc-edge-7);
   --proc-pattern:
     repeating-linear-gradient(0deg, var(--proc-stroke) 0 1.5px, transparent 1.5px 7px),
     repeating-linear-gradient(90deg, var(--proc-stroke) 0 1.5px, transparent 1.5px 7px);
@@ -81,6 +89,7 @@
 
 .proc-fill[data-proc='8'] {
   --proc-fill: var(--proc-8);
+  --proc-edge: var(--proc-edge-8);
   --proc-pattern: conic-gradient(
     var(--proc-stroke) 25%,
     transparent 0 50%,
@@ -92,18 +101,28 @@
 
 .proc-fill[data-proc='9'] {
   --proc-fill: var(--proc-9);
+  --proc-edge: var(--proc-edge-9);
   --proc-pattern: radial-gradient(circle, var(--proc-stroke) 2.5px, transparent 3px);
   --proc-pattern-size: 10px 10px;
 }
 
-/* Idle or context-switch time: grey with a fine hatch, always labelled in text. */
+/*
+ * Idle and context-switch time (§5.3): idle is dotted grey, a context switch is hatched
+ * grey, and both are always labelled in text ("idle", "CS"). The patterns themselves are
+ * the `--idle` and `--cs` tokens; GanttChart draws the same two as SVG patterns.
+ */
+.pattern-idle,
 .idle-fill {
   background-color: var(--idle-fill);
-  background-image: repeating-linear-gradient(
-    45deg,
-    var(--idle-stroke) 0 1px,
-    transparent 1px 5px
-  );
+  background-image: var(--idle);
+  background-size: var(--idle-size);
   border: 1px dashed var(--border-strong);
-  color: var(--text-primary);
+  color: var(--fg);
+}
+
+.pattern-cs {
+  background-color: var(--cs-fill);
+  background-image: var(--cs);
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
 }

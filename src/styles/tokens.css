@@ -1,9 +1,11 @@
 /*
- * Design tokens: the single source of colour, type, timing and hit-target sizes.
+ * Design tokens, "Timing diagram" theme (docs/UIUX.md §5, §6.2): the single source of
+ * colour, type, timing and hit-target sizes.
  *
- * Adapted from Internet Visualizer's `src/styles/tokens.css` (see VENDORED.md). The
- * names are the same, so the vendored timeline UI reads them unchanged; the values are
- * new, because this product has a light theme as well as a dark one.
+ * Light is "Datasheet": warm off-white paper, near-black ink, one signal-blue accent.
+ * Dark is "Logic analyser": blue-grey graphite with brighter traces. Both borrow from
+ * datasheets and logic analysers, because most of what this site draws is a timing
+ * diagram.
  *
  * Rules:
  *
@@ -11,84 +13,142 @@
  *   2. Never encode meaning in colour alone. Every process colour has a pattern
  *      (src/styles/process.css) and the PID is always drawn as text beside or inside it.
  *      State colours are always paired with an icon or a word.
- *   3. Contrast: body text >= 4.5:1, UI borders >= 3:1, against every surface the token
- *      can sit on, in both themes. `src/components/shell/tokens.test.ts` parses this file
- *      and asserts the pairs that matter.
+ *   3. Contrast: text >= 4.5:1, UI borders >= 3:1, against every surface the token can
+ *      sit on, in both themes, and the PID ink on every process fill.
+ *      `src/components/shell/tokens.test.ts` parses this file and asserts every pair.
  *   4. A ratio is only true at full alpha. Text that should look receded uses
- *      `--text-dim`, never an opacity multiplier.
+ *      `--fg-dim`, never an opacity multiplier.
+ *
+ * ## Names
+ *
+ * The §5.1 names (`--bg`, `--surface`, `--fg`, `--ok`, ...) hold the values. The older
+ * names the vendored timeline and the built components read (`--bg-raised`,
+ * `--text-primary`, `--state-error`, ...) are aliases, declared once in `:root` with
+ * `var()`, so each value is written once per theme. Custom properties resolve on the
+ * element that declares them, so an alias on `:root` follows the theme blocks below.
+ *
+ * Where the plan's table and the contrast rule disagree, the rule wins: §5.1's
+ * `--border` (#cfcbc0 / #323a46) is under 3:1 on its own surfaces, so those values are
+ * `--rule` (decorative dividers and panel edges that are not the only boundary of a
+ * control) and `--border` is darkened until it clears 3:1 everywhere.
  *
  * ## Themes
  *
  * Light is the default. Dark applies when the OS asks for it, unless the viewer has
- * picked a theme with the toggle, which writes `data-theme` on <html> (before first paint,
- * see `src/components/shell/prefs.ts`). So the dark block appears twice: once under the
- * media query for "follow the OS", once for an explicit `data-theme="dark"`.
+ * picked a theme with the toggle, which writes `data-theme` on <html> before first paint
+ * (`src/components/shell/themeScript.ts`). So the dark block appears twice: once under
+ * the media query for "follow the OS", once for an explicit `data-theme="dark"`.
  */
 
 :root {
   color-scheme: light;
 
   /* --- Surface ------------------------------------------------------------ */
-  --bg-base: #f6f7f9; /* page canvas */
-  --bg-raised: #ffffff; /* cards, panels, header */
-  --bg-overlay: #eef0f4; /* popovers, menus, hovered rows */
+  --bg: #f6f5f1; /* page */
+  --surface: #ffffff; /* panels */
+  --surface-2: #efede7; /* wells, editor fields, hovered rows */
+  --grid: #e4e1d8; /* tick grid, rulers: decorative only, never behind text */
+  --rule: #cfcbc0; /* decorative dividers (not a control's only boundary) */
 
-  --border: #7b8597; /* 3.84 on raised, 3.37 on overlay */
-  --border-strong: #5d6678;
+  --border: #8a8679; /* UI borders: >= 3:1 on every surface */
+  --border-strong: #6b675c;
 
   /* --- Text --------------------------------------------------------------- */
-  --text-primary: #111827;
-  --text-secondary: #374151;
-  --text-muted: #4b5563;
-  --text-dim: #5f6877; /* the dimmest text the product may draw */
+  --fg: #17191e;
+  --fg-secondary: #3d4149;
+  --fg-muted: #555a63;
+  --fg-dim: #5c616a; /* the dimmest text the product may draw */
 
-  /* --- Accent ------------------------------------------------------------- */
-  --accent: #1d4ed8;
-  --accent-strong: #1e40af;
+  /* --- Accent: links, focus, cursor, current step --------------------------- */
+  --accent: #1f5bd0;
+  --accent-strong: #1a4cb0;
   --accent-ink: #ffffff; /* text on a filled accent or state surface */
-  --focus-ring: #1d4ed8;
 
-  /* --- State -------------------------------------------------------------- */
-  --state-ok: #166534;
-  --state-warn: #92400e;
-  --state-error: #b91c1c;
-  --state-pending: #4b5563;
+  /* --- State: hit, wait, fault / deadlock (always with an icon and a word) --- */
+  --ok: #1d6b3a;
+  --warn: #8a4b00;
+  --danger: #b42318;
+  --pending: #555a63;
+
+  /* --- Idle and context switch -------------------------------------------- */
+  /* Idle is dotted grey, a context switch hatched grey; both always labelled. */
+  --idle-fill: #ebe8e0;
+  --idle-stroke: #8a8679;
+  --cs-fill: #e1ded5;
+  --cs-stroke: #6b675c;
+  --idle: radial-gradient(circle, var(--idle-stroke) 1px, transparent 1.5px);
+  --idle-size: 6px 6px;
+  --cs: repeating-linear-gradient(45deg, var(--cs-stroke) 0 1.5px, transparent 1.5px 6px);
 
   /*
    * --- Process palette ----------------------------------------------------
    *
-   * Ten fills, one per PID slot (`pid % 10`). Each is light enough that `--proc-ink`
-   * reads on it at >= 4.5:1, so a PID can be drawn *inside* a bar. Hue is the weakest of
-   * the three signals: every slot also has its own pattern (process.css) and the PID is
-   * always printed. Fills are the same in both themes; a bar always has an ink outline,
-   * which is what separates it from the page in either theme.
+   * Ten slots (`pid % 10`), from Okabe-Ito extended to ten. A bar is a pale fill with a
+   * strong edge: the fill carries `--proc-ink` (the PID) at >= 4.5:1, and the edge is what
+   * separates the bar from the page at >= 3:1. Fills are the same in both themes; the
+   * edges brighten in dark. Hue is the weakest of the three signals: every slot also has
+   * its own pattern (process.css) and the PID is always printed.
    */
-  --proc-0: #56b4e9; /* sky, solid */
-  --proc-1: #e69f00; /* orange, diagonal stripes */
-  --proc-2: #2bb58f; /* green, back-diagonal stripes */
-  --proc-3: #f0e442; /* yellow, horizontal stripes */
-  --proc-4: #8fb0f7; /* periwinkle, vertical stripes */
-  --proc-5: #f4845f; /* coral, dots */
-  --proc-6: #d58cc4; /* orchid, cross-hatch */
-  --proc-7: #b5d86a; /* lime, grid */
-  --proc-8: #c9a77c; /* tan, checker */
-  --proc-9: #7fd1c7; /* teal, large dots */
-  --proc-ink: #111827; /* PID text and pattern strokes on any process fill */
-  --proc-stroke: rgb(17 24 39 / 0.55); /* pattern lines: decoration, not text */
+  --proc-0: #cfe6f7; /* sky, solid */
+  --proc-1: #fbe0b0; /* orange, diagonal stripes */
+  --proc-2: #bfe8d6; /* bluish green, back-diagonal stripes */
+  --proc-3: #f8f1a8; /* yellow, horizontal stripes */
+  --proc-4: #d6dcf7; /* blue, vertical stripes */
+  --proc-5: #f9cdb8; /* vermilion, dots */
+  --proc-6: #ecd0e6; /* reddish purple, cross-hatch */
+  --proc-7: #dcebc0; /* lime, grid */
+  --proc-8: #e6d6c2; /* tan, checker */
+  --proc-9: #c6ece6; /* teal, large dots */
+  --proc-edge-0: #0072b2;
+  --proc-edge-1: #b06a00;
+  --proc-edge-2: #00805e;
+  --proc-edge-3: #7a6f00;
+  --proc-edge-4: #4459c4;
+  --proc-edge-5: #c2410c;
+  --proc-edge-6: #a3488f;
+  --proc-edge-7: #55801f;
+  --proc-edge-8: #8a6339;
+  --proc-edge-9: #1b7f74;
+  --proc-ink: #17191e; /* PID text on any process fill */
+  --proc-stroke: rgb(23 25 30 / 0.4); /* pattern lines: decoration, not text */
 
-  /* Idle and context-switch time: hatched grey, labelled "idle" / "CS". */
-  --idle-fill: #e5e7eb;
-  --idle-stroke: rgb(75 85 99 / 0.6);
+  /* --- Aliases: the names the built components read ------------------------ */
+  --bg-base: var(--bg);
+  --bg-raised: var(--surface);
+  --bg-overlay: var(--surface-2);
+  --text-primary: var(--fg);
+  --text-secondary: var(--fg-secondary);
+  --text-muted: var(--fg-muted);
+  --text-dim: var(--fg-dim);
+  --focus-ring: var(--accent);
+  --state-ok: var(--ok);
+  --state-warn: var(--warn);
+  --state-error: var(--danger);
+  --state-pending: var(--pending);
 
-  /* --- Motion ------------------------------------------------------------- */
-  --dur-fast: 120ms;
-  --dur-base: 240ms;
-  --dur-slow: 600ms;
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
-  --default-transition-duration: var(--dur-fast);
-  --default-transition-timing-function: var(--ease-out);
+  /* --- Surfaces and details (§5.3) ---------------------------------------- */
+  /*
+   * Panels: 1px border, 6px radius (`rounded-panel`). Dark draws a 1px inner
+   * highlight; light has none (no drop shadows).
+   */
+  --panel-highlight: transparent;
+
+  /*
+   * --- Motion (§6.2) -------------------------------------------------------
+   * Mirrored in `src/components/motion/tokens.ts` for JS; a test keeps them equal.
+   */
+  --dur-1: 120ms; /* highlights, chip state, colour changes */
+  --dur-2: 220ms; /* movement: a chip changing queue, a bar extending one tick */
+  --dur-3: 360ms; /* arrivals and exits: a page loading into a frame, a phase change */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-inout: cubic-bezier(0.6, 0, 0.3, 1);
+  --ease-snap: cubic-bezier(0.3, 1.4, 0.5, 1); /* one small overshoot: "decided" only */
+  --dur-fast: var(--dur-1);
+  --dur-base: var(--dur-2);
+  --dur-slow: var(--dur-3);
   --ease-in-out: var(--ease-inout);
+  --default-transition-duration: var(--dur-1);
+  --default-transition-timing-function: var(--ease-out);
 
   /* --- Hit targets -------------------------------------------------------- */
   /* 44px for primary controls, 24px (WCAG 2.5.8) as the floor for anything pressable. */
@@ -100,64 +160,98 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg-base: #07090d;
-    --bg-raised: #0e131c;
-    --bg-overlay: #161d2b;
-    --border: #616e85;
-    --border-strong: #7a879e;
-    --text-primary: #e8eff8;
-    --text-secondary: #b6c4d6;
-    --text-muted: #8a99ae;
-    --text-dim: #7b889d;
-    --accent: #4cc2f1;
-    --accent-strong: #7bd4f7;
-    --accent-ink: #04121b;
-    --focus-ring: #7bd4f7;
-    --state-ok: #45c67b;
-    --state-warn: #e0a63a;
-    --state-error: #ff6b6b;
-    --state-pending: #8a99ae;
-    --idle-fill: #2a3242;
-    --idle-stroke: rgb(182 196 214 / 0.55);
+    --bg: #0f1217;
+    --surface: #161b22;
+    --surface-2: #1d232c;
+    --grid: #232a34;
+    --rule: #323a46;
+    --border: #69768a;
+    --border-strong: #7d8898;
+    --fg: #e8eaee;
+    --fg-secondary: #c4c9d1;
+    --fg-muted: #a1a8b3;
+    --fg-dim: #949ba6;
+    --accent: #7aa7ff;
+    --accent-strong: #a3c2ff;
+    --accent-ink: #0f1217;
+    --ok: #5cc98a;
+    --warn: #e8b04a;
+    --danger: #ff7b72;
+    --pending: #a1a8b3;
+    --idle-fill: #232a34;
+    --idle-stroke: #7d8898;
+    --cs-fill: #2a313c;
+    --cs-stroke: #949ba6;
+    --proc-edge-0: #56b4e9;
+    --proc-edge-1: #e69f00;
+    --proc-edge-2: #2bc495;
+    --proc-edge-3: #e0d43a;
+    --proc-edge-4: #8fa6f7;
+    --proc-edge-5: #f4845f;
+    --proc-edge-6: #d58cc4;
+    --proc-edge-7: #a9d36a;
+    --proc-edge-8: #c9a77c;
+    --proc-edge-9: #5fd1c4;
+    --panel-highlight: rgb(255 255 255 / 0.04);
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg-base: #07090d;
-  --bg-raised: #0e131c;
-  --bg-overlay: #161d2b;
-  --border: #616e85;
-  --border-strong: #7a879e;
-  --text-primary: #e8eff8;
-  --text-secondary: #b6c4d6;
-  --text-muted: #8a99ae;
-  --text-dim: #7b889d;
-  --accent: #4cc2f1;
-  --accent-strong: #7bd4f7;
-  --accent-ink: #04121b;
-  --focus-ring: #7bd4f7;
-  --state-ok: #45c67b;
-  --state-warn: #e0a63a;
-  --state-error: #ff6b6b;
-  --state-pending: #8a99ae;
-  --idle-fill: #2a3242;
-  --idle-stroke: rgb(182 196 214 / 0.55);
+  --bg: #0f1217;
+  --surface: #161b22;
+  --surface-2: #1d232c;
+  --grid: #232a34;
+  --rule: #323a46;
+  --border: #69768a;
+  --border-strong: #7d8898;
+  --fg: #e8eaee;
+  --fg-secondary: #c4c9d1;
+  --fg-muted: #a1a8b3;
+  --fg-dim: #949ba6;
+  --accent: #7aa7ff;
+  --accent-strong: #a3c2ff;
+  --accent-ink: #0f1217;
+  --ok: #5cc98a;
+  --warn: #e8b04a;
+  --danger: #ff7b72;
+  --pending: #a1a8b3;
+  --idle-fill: #232a34;
+  --idle-stroke: #7d8898;
+  --cs-fill: #2a313c;
+  --cs-stroke: #949ba6;
+  --proc-edge-0: #56b4e9;
+  --proc-edge-1: #e69f00;
+  --proc-edge-2: #2bc495;
+  --proc-edge-3: #e0d43a;
+  --proc-edge-4: #8fa6f7;
+  --proc-edge-5: #f4845f;
+  --proc-edge-6: #d58cc4;
+  --proc-edge-7: #a9d36a;
+  --proc-edge-8: #c9a77c;
+  --proc-edge-9: #5fd1c4;
+  --panel-highlight: rgb(255 255 255 / 0.04);
 }
 
 /*
  * Tailwind wiring. `inline` makes utilities emit `var(--bg-raised)` rather than a copied
  * value, so the theme switch is one attribute change with no rebuild of intermediates.
- * Utility names follow Internet Visualizer: `surface` for backgrounds, `fg` for text.
+ * Utility names follow Internet Visualizer: `surface` for backgrounds (so `bg-surface` is
+ * the page and `bg-surface-raised` a panel), `fg` for text.
  */
 @theme inline {
-  /* System stacks: no web font is fetched, which keeps every route's budget for code. */
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Geist and Geist Mono, loaded by next/font in layout.tsx; system stacks until then. */
+  --font-sans:
+    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --color-surface: var(--bg-base);
   --color-surface-raised: var(--bg-raised);
   --color-surface-overlay: var(--bg-overlay);
+  --color-grid: var(--grid);
+  --color-rule: var(--rule);
 
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
@@ -189,6 +283,9 @@
   --color-proc-9: var(--proc-9);
   --color-proc-ink: var(--proc-ink);
   --color-idle: var(--idle-fill);
+  --color-cs: var(--cs-fill);
+
+  --radius-panel: 6px;
 
   /* `min-h-target`, `size-target`, and the `-floor` of each. */
   --spacing-target: var(--target-min);
@@ -196,8 +293,9 @@
 }
 
 /*
- * The type scale. `caption` (12px) is the floor. The first five steps sit on Tailwind's
- * xs / sm / base / lg / xl. `static` so a stylesheet can use `var(--text-story)` directly.
+ * The type scale (§5.2): 12 / 14 / 16 / 18 / 22 / 28 / 36 / 48. `caption` is the floor
+ * and body is 16. `hero` is the one fluid step, Geist 700 with tight tracking, for the
+ * home page and module headers. `static` so a stylesheet can use `var(--text-story)`.
  */
 @theme static {
   --text-caption: 0.75rem;
@@ -208,10 +306,16 @@
   --text-body--line-height: 1.5;
   --text-lead: 1.125rem;
   --text-lead--line-height: calc(1.75 / 1.125);
-  --text-story: 1.25rem;
-  --text-story--line-height: 1.4;
-  --text-title: 1.875rem;
+  --text-story: 1.375rem;
+  --text-story--line-height: 1.35;
+  --text-title: 1.75rem;
   --text-title--line-height: 1.2;
-  --text-display: 2.75rem;
-  --text-display--line-height: 1.1;
+  --text-headline: 2.25rem;
+  --text-headline--line-height: 1.15;
+  --text-display: 3rem;
+  --text-display--line-height: 1.05;
+  --text-hero: clamp(2.25rem, 1.5rem + 3vw, 3.5rem);
+  --text-hero--line-height: 1.05;
+  --text-hero--letter-spacing: -0.025em;
+  --text-hero--font-weight: 700;
 }
