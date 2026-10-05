@@ -7,9 +7,5 @@ coverage/
 !.env.example
 *.tsbuildinfo
 next-env.d.ts
-docs/**
-!docs/ACCURACY.md
-!docs/media/
-!docs/media/*.png
 playwright-report/
 test-results/
