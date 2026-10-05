@@ -57,6 +57,13 @@ import { restoreFocus, useSupportsPopover } from './topLayer';
  * `position: fixed` and positioned, but a transformed ancestor can capture it and an
  * `overflow-hidden` one can clip it. That is the whole of what the fallback gives up.
  *
+ * ## A `<span>`, not a `<div>`
+ *
+ * A glossary term or a citation sits inside a `<p>`, and the HTML parser closes a `<p>`
+ * at the first `<div>`, which breaks hydration. The panel is therefore a `<span>`;
+ * `position: fixed` makes it a block, so it looks the same. Children that may end up in
+ * a sentence should be phrasing content too (`<span className="block">`, not `<p>`).
+ *
  * ## Only while open
  *
  * The panel element always exists (so `aria-controls` always points at something), but
@@ -132,7 +139,7 @@ export function Popover({
   const open = controlled ? openProp : internalOpen;
 
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLSpanElement>(null);
 
   // The latest `open`, for event handlers that must not re-subscribe on every change.
   const openRef = useRef(open);
@@ -256,7 +263,7 @@ export function Popover({
         {trigger}
       </button>
 
-      <div
+      <span
         ref={panelRef}
         id={panelId}
         role="dialog"
@@ -281,7 +288,7 @@ export function Popover({
             ? children({ close: closeFromInside })
             : children
           : null}
-      </div>
+      </span>
     </>
   );
 }
