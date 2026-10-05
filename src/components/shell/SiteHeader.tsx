@@ -1,55 +1,53 @@
 import Link from 'next/link';
 
 import { SITE_NAME } from '@/lib/site';
-import { MODULES } from '@/modules/registry';
 
+import { KeyboardHelp, MobileMenu, ModulesMenu, NavLink } from './SiteHeaderMenus';
 import { ThemeToggle } from './ThemeToggle';
 
 /**
- * The bar on every page: skip link, the site name home, the ready modules, Learn, About and
- * the theme toggle. Modules come from the registry, so a module appears here the moment
- * its entry is flipped to `ready`.
+ * The bar on every page (docs/UIUX.md §4.2): skip link, wordmark, a Modules menu from the
+ * registry, Learn, About, the theme toggle and the keyboard-help button. Below `md` the
+ * links and the toggle move into a menu sheet. Sticky, with a 1 px rule under it.
+ *
+ * `/demo` is a developer page and is deliberately not linked (A3).
  */
 export function SiteHeader() {
-  const ready = MODULES.filter((m) => m.status === 'ready');
-
   return (
-    <header className="border-border bg-surface-raised border-b">
+    <header className="border-border bg-surface-raised sticky top-0 z-40 border-b">
       <a
         href="#main"
         className="skip-link bg-accent text-accent-ink rounded-md px-3 py-2"
       >
         Skip to content
       </a>
-      <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-        <Link href="/" className="text-fg text-lead rounded-sm font-semibold">
+      <div className="mx-auto flex w-full max-w-7xl items-center gap-4 px-4 py-2 sm:px-6">
+        <Link
+          href="/"
+          className="text-fg text-lead mr-auto shrink-0 rounded-sm font-semibold tracking-tight md:mr-2"
+        >
           {SITE_NAME}
         </Link>
-        <nav aria-label="Main" className="flex-1">
-          <ul className="text-small flex flex-wrap gap-x-4 gap-y-1">
-            {ready.map((m) => (
-              <li key={m.slug}>
-                <Link
-                  href={m.route}
-                  className="text-fg-secondary hover:text-fg rounded-sm"
-                >
-                  {m.title}
-                </Link>
-              </li>
-            ))}
+        <nav aria-label="Main" className="hidden flex-1 md:block">
+          <ul className="flex items-center gap-x-3">
             <li>
-              <Link href="/learn" className="text-fg-secondary hover:text-fg rounded-sm">
-                Learn
-              </Link>
+              <ModulesMenu />
             </li>
             <li>
-              <Link href="/about" className="text-fg-secondary hover:text-fg rounded-sm">
-                About
-              </Link>
+              <NavLink href="/learn">Learn</NavLink>
+            </li>
+            <li>
+              <NavLink href="/about">About</NavLink>
             </li>
           </ul>
         </nav>
-        <ThemeToggle />
+        <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
+          <KeyboardHelp />
+        </div>
+        <div className="md:hidden">
+          <MobileMenu />
+        </div>
       </div>
     </header>
   );
