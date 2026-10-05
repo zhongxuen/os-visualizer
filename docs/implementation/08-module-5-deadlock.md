@@ -27,7 +27,8 @@ src/core/deadlock/
   bankers.ts         safety algorithm and resource-request algorithm (Max, Need)  OSC10 §8.6.3
   recover.ts         terminate a process / preempt a resource, then re-detect      OSC10 §8.8
   coffman.ts         the four conditions: evaluated or "assumed by the model"
-  presets.ts  events.ts  citations.ts  scenarios.ts  state.ts  rules.ts  index.ts
+  rules.ts           conventions for the RulesPanel (id, text, plain, whyItMatters)
+  presets.ts  events.ts  citations.ts  scenarios.ts  state.ts  index.ts
 tests/fixtures/deadlock/*.test.ts
 tests/oracle/deadlock.test.ts
 src/modules/deadlock/            GraphEditorForm, GraphCanvas (React Flow, lazy), DetectView,
@@ -56,6 +57,12 @@ src/app/(modules)/deadlock/page.tsx
 - Cycle detection runs DFS from the lowest-numbered node, neighbours in ascending order,
   and reports the first cycle found.
 
+Besides its `id` and formal `text`, every rule in `rules.ts` carries **`plain`** (one plain
+sentence for students) and **`whyItMatters`** (what changes if a book uses another
+convention, e.g. "Your book may list a different safe sequence; both are correct if every
+thread can finish in that order") (`docs/UIUX.md` G4). They are text only and change no
+logic.
+
 ### 2. Algorithms, each as a step run
 
 - **Cycle detection** (single-instance only): build the wait-for graph (OSC10 §8.7.1),
@@ -80,7 +87,9 @@ src/app/(modules)/deadlock/page.tsx
 | No preemption | "Assumed by the model" — becomes "violated by you" after a preempt recovery |
 | Circular wait | Evaluated: true if the wait-for graph (single-instance) or RAG has a cycle |
 
-A footnote says all four are necessary, not sufficient, for deadlock.
+A footnote says all four are necessary, not sufficient, for deadlock. In the UI, the
+"assumed" wording reads as plain English (UIUX D3): "Always true here: this simulator
+never shares a resource instance."
 
 ### 4. Graph editing (UI, but specified here)
 
@@ -134,6 +143,23 @@ Oracle (`tests/oracle/deadlock.test.ts`, n ≤ 6 processes so 720 orderings at m
 - [ ] `/deadlock` is fully usable keyboard only via the form; the canvas is an extra
 - [ ] React Flow is not in any other route's bundle (check the build output)
 - [ ] Coffman panel marks assumed conditions as assumed
+- [ ] Every rule in `rules.ts` has a non-empty `plain` and `whyItMatters`
+- [ ] UIUX §2.3 D1–D5 and G13: each tab has a one-line intro ("Detection: what's
+      happening now" / "Avoidance: what might happen, given every thread's maximum"); Max
+      and Allocation are inputs, Need is visibly derived ("= Max − Allocation"), Work is a
+      separate vector bar, and only the compared row is at full strength (contrast holds);
+      the Coffman panel uses the D3 wording; on touch the canvas is view-only with pan and
+      zoom and says the form is the editor; the result reads "One safe order (there may be
+      others)"; the intro explains "Silberschatz calls them threads T0, T1…" and thread
+      chips are rounded squares
+- [ ] UIUX §7.2.5 animations, through the shared motion primitives only: dashed flowing
+      request edges; DFS path draws edge by edge and the closed cycle pulses then stays
+      highlighted (thicker, red, labelled "cycle"); form edits draw or fade edges; finished
+      threads' Allocation flows into Work and Work rolls; per-column ✓/× for
+      `Need_i ≤ Work` pop in left to right; safe-sequence chips append; the request
+      checklist ticks, "pretend to allocate" is ghosted and a roll-back reverts visibly;
+      recovery fades the terminated thread and retracts its edges; Coffman states flip
+- [ ] The end-of-run card offers a contrasting preset and links to /learn
 - [ ] URL round-trips the graph and Banker's state; axe clean; `npm run verify` passes
 
 ---
@@ -148,7 +174,7 @@ Read docs/implementation/00-overview.md and docs/implementation/08-module-5-dead
 In src/core/deadlock only: implement the graph model with derived matrices, deterministic
 cycle detection on the wait-for graph, the detection algorithm, Banker's safety and
 request algorithms, recovery, and coffman.ts, all as step runs, following the scan-order
-and DFS rules in step 1. Replace the placeholder events.ts with DlEvent (snapshot:
+and DFS rules in step 1, and rules.ts (each rule with `plain` and `whyItMatters` strings). Replace the placeholder events.ts with DlEvent (snapshot:
 matrices, Work, Finish, highlighted row/edge, result). Add OSC10 ch. 8 and OSTEP ch. 32
 citations, presets, scenarios.ts and the state.ts branch.
 
@@ -161,18 +187,29 @@ Commit on feat/deadlock-core.
 ### Prompt 8.ui — deadlock module (wave W3, after 3.2)
 
 ```
-Read docs/implementation/08-module-5-deadlock.md and 03-ui-shell-and-visual-blocks.md.
+Read docs/implementation/08-module-5-deadlock.md, 03-ui-shell-and-visual-blocks.md and
+docs/UIUX.md §2.2, §2.3 (Deadlock), §6 and §7.2.5.
 
-Build src/modules/deadlock and the /deadlock route with two tabs, Graph and Banker's.
-Graph tab: GraphEditorForm (primary, keyboard operable), GraphCanvas with @xyflow/react
-loaded via next/dynamic and a deterministic layout, the text summary, DetectView,
-CoffmanPanel and RecoveryPanel. Banker's tab: editable Max/Allocation/Available with
-MatrixTable, Need computed, safety run and request form. Use StepInspector and RulesPanel
-(including the note that the shown safe sequence is one of possibly several).
+Build src/modules/deadlock and the /deadlock route inside the shared workspace with two
+tabs, Graph and Banker's, each with its one-line intro (D1). The module intro explains
+"Silberschatz calls them threads T0, T1…"; thread chips are rounded squares (G13).
+Graph tab: GraphEditorForm (primary, keyboard operable; one human validation message per
+field), GraphCanvas with @xyflow/react loaded via next/dynamic and a deterministic layout
+(view-only with pan and zoom on touch, saying the form is the editor), the text summary,
+DetectView, CoffmanPanel (D3 wording) and RecoveryPanel. Banker's tab: Max and Allocation
+as editable MatrixTables, Need visibly derived ("= Max − Allocation"), Available, Work as
+a separate vector bar, only the compared row at full strength, per-column ≤ checks, safety
+run, "One safe order (there may be others)" next to the result, and the request form as a
+ticking checklist. Presets first, Edit reveals controls. Use StepInspector (Rule-used chip)
+and RulesPanel (including the note that the shown safe sequence is one of possibly
+several). Wrap the first use of each glossary term (Need, Work, Available, safe state,
+wait-for graph, …) in <Term>. Add every animation in UIUX §7.2.5 through the shared motion
+primitives only. Supply the EndOfRunCard's "Try this next" preset and the /learn link.
 
 Flip the registry entry to 'ready'. e2e: build the two-lock deadlock with the form only,
 run detection, check the cycle is announced, recover by terminating T1; run the OSC10
-Banker's preset and the T0 (0,2,0) request and check it is refused; axe. Confirm from the
+Banker's preset and the T0 (0,2,0) request and check it is refused; check the per-column
+✓/× marks are visible on a safety step; the reduced-motion e2e; axe. Confirm from the
 build output that @xyflow/react is only in the /deadlock chunk.
 Done when `npm run verify` and `npm run test:e2e` pass. Commit.
 ```

@@ -25,10 +25,12 @@ src/core/vm/
   tlb.ts             fully associative TLB with LRU or FIFO replacement
   translate.ts       translate(config, tables, accesses[]) => SimResult<VmEvent>
   sizing.ts          linear vs two-level page-table size for a given address-space layout
-  presets.ts  events.ts  citations.ts  scenarios.ts  state.ts  rules.ts  index.ts
+  rules.ts           conventions for the RulesPanel (id, text, plain, whyItMatters)
+  presets.ts  events.ts  citations.ts  scenarios.ts  state.ts  index.ts
 tests/fixtures/vm/*.test.ts
 tests/oracle/vm.test.ts
-src/modules/translation/         ConfigPanel, PageTableView, TlbView, AccessList, SizingPanel
+src/modules/translation/         ConfigPanel, PageTableView, TlbView, AccessList, Pipeline,
+                                 SizingPanel
 src/app/(modules)/translation/page.tsx
 ```
 
@@ -62,7 +64,11 @@ src/app/(modules)/translation/page.tsx
 
 Rules (`rules.ts`): TLB is checked before the page table; faults don't fill the TLB;
 accessed/dirty bits are set by the hardware walk (x86-style); every memory reference is
-counted, including the page-table reads.
+counted, including the page-table reads. Besides its `id` and formal `text`, every rule
+carries **`plain`** (one plain sentence for students) and **`whyItMatters`** (what
+changes if a book uses another convention, e.g. "A book that doesn't count page-table
+reads will show one memory reference per access, not two") (`docs/UIUX.md` G4). They are
+text only and change no logic.
 
 ### 3. Page-table size calculator (`sizing.ts`)
 
@@ -103,6 +109,21 @@ per TLB miss that pays for it (OSTEP §20.3).
 - [ ] Faults stop the access, explain why and link to Page Replacement
 - [ ] `/translation`: edit the config, page table and access list by keyboard; BitField,
       TLB, page table and inspector stay in sync; sizing panel works
+- [ ] Every rule in `rules.ts` has a non-empty `plain` and `whyItMatters`
+- [ ] UIUX §2.3 T1–T5: BitField shows one base at a time (binary default) and explains
+      the split with derived numbers ("16-byte pages → 4 offset bits → 4 VPN bits → 16
+      pages"); the Split → TLB → Walk → Check → Fill → PA → Access pipeline lights the
+      current stage and shows skipped stages on a TLB hit; PTBR, PDE, PTE, PFN and VPN are
+      `<Term>`s and page-table rows are labelled in words ("entry for page 6"); the sizing
+      calculator is its own "Why two levels?" tab; the fault link carries the page to
+      /replacement via `?s=`
+- [ ] UIUX §7.2.3 animations, through the shared motion primitives only: BitField fields
+      separate and the VPN ghost travels to the TLB; pipeline paths draw in and skipped
+      stages dim with a strike; TLB scan sweep, hit pulse, miss ×, FLIP fill; page-table
+      walk arrows from PTBR (PTBR → PDE → PTE for two levels) with a memory-reference
+      `<Ticker>`; invalid and protection marks; PFN and offset slide together into the PA;
+      sizing bars grow
+- [ ] The end-of-run card offers a contrasting preset and links to /replacement
 - [ ] URL round-trips; axe clean; `npm run verify` passes
 
 ---
@@ -116,7 +137,8 @@ Read docs/implementation/00-overview.md and docs/implementation/06-module-3-addr
 
 In src/core/vm only: implement the config schema and limits, page tables as data (one or
 two levels, PTBR, PTE addresses), the TLB (LRU/FIFO, lowest-slot tie-break), translate()
-emitting one phase per access with the seven steps in step 2, rules.ts, and sizing.ts.
+emitting one phase per access with the seven steps in step 2, rules.ts (each rule with
+`plain` and `whyItMatters` strings), and sizing.ts.
 Replace the placeholder events.ts with VmEvent (snapshot: TLB, tables, bits, counters).
 Add OSTEP ch. 18-20 citations, the presets, scenarios.ts and the state.ts branch.
 
@@ -128,15 +150,26 @@ files. Done when `npm run verify` passes. Commit on feat/vm-core.
 ### Prompt 6.ui — translation module (wave W3, after 3.2)
 
 ```
-Read docs/implementation/06-module-3-address-translation.md and 03-ui-shell-and-visual-blocks.md.
+Read docs/implementation/06-module-3-address-translation.md, 03-ui-shell-and-visual-blocks.md
+and docs/UIUX.md §2.2, §2.3 (Address Translation), §6 and §7.2.3.
 
-Build src/modules/translation and the /translation route from shared components: a config
-panel, an editable page table (valid, PFN, protection) and access list, BitField for the
-current address, TlbView, PageTableView highlighting the PTE being read and its address,
-a running counter of TLB hits/misses and memory references, StepInspector, RulesPanel, and
-the SizingPanel. Fault steps link to /replacement. Wire presets and useShareState.
+Build src/modules/translation and the /translation route inside the shared workspace,
+from shared components: a config panel (presets first, Edit reveals controls, advanced
+options under "More options"; one human validation message per field), an editable page
+table (valid, PFN, protection; rows labelled in words, "entry for page 6") and access
+list, BitField for the current address (one base at a time, binary default, with the
+split explained in derived numbers), the seven-stage pipeline (Split → TLB → Walk → Check
+→ Fill → PA → Access) with the current stage lit and skipped stages shown on a TLB hit,
+TlbView, PageTableView highlighting the PTE being read and its address, a running counter
+of TLB hits/misses and memory references, StepInspector (Rule-used chip), RulesPanel, and
+the SizingPanel on its own "Why two levels?" tab. Wrap the first use of each glossary term
+(PTBR, PDE, PTE, PFN, VPN, TLB, …) in <Term>. Add every animation in UIUX §7.2.3 through
+the shared motion primitives only. Fault steps link to /replacement and carry the page
+number via ?s=. Supply the EndOfRunCard's "Try this next" preset and next-module link.
+Wire presets and useShareState.
 
 Flip the registry entry to 'ready'. e2e: run the OSTEP array walk preset to the end and
-check the hit rate reads 70%, plus axe. Done when `npm run verify` and
-`npm run test:e2e` pass. Commit.
+check the hit rate reads 70%; check the pipeline marks Walk and Check as skipped on a hit;
+follow a fault link and check /replacement opens with that page; the reduced-motion e2e;
+plus axe. Done when `npm run verify` and `npm run test:e2e` pass. Commit.
 ```

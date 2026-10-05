@@ -18,7 +18,9 @@ the portfolio site.
 
 ```
 src/content/lessons/<module>.mdx     one walkthrough per module
-src/app/learn/page.tsx               lesson index with completion
+src/app/learn/page.tsx               learning path (stations 1–5) with completion
+src/app/learn/[module]/page.tsx      one lesson per module at /learn/<module>
+src/app/learn/glossary/page.tsx      every term in src/content/glossary.ts, searchable
 src/components/lesson/               Checkpoint (predict-the-next-step), LessonStep
 docs/ACCURACY.md                     every source, every convention, every known gap
 tests/accuracy.test.ts               ACCURACY.md ⊇ every citation the product uses
@@ -53,7 +55,18 @@ kernels do: Linux EEVDF (which replaced CFS in 6.6), multi-level page tables on 
 Linux's approximate LRU with active/inactive lists, and why most OSes don't use Banker's
 (deadlock is usually prevented by lock ordering). Each box cites a source.
 
-`/learn` lists the lessons with completion from `useProgress`.
+Each lesson lives at **`/learn/<module>`** (`/learn/scheduling`, `/learn/compare`,
+`/learn/translation`, `/learn/replacement`, `/learn/deadlock`): a 68ch reading column with
+the workspace embedded at each "Try it" point, scrolled into view at the right step, and
+checkpoint cards in the states of `docs/UIUX.md` §7.3 (the transport bar shows "paused for
+a question"; ✓ with a short reveal, or × with the reason; no confetti). The module's
+Guided mode opens the same walkthrough.
+
+`/learn` is a vertical learning path in the suggested order (Scheduling → Compare →
+Translation → Replacement → Deadlock), each station with its lesson length, checkpoints
+done and a progress ring from `useProgress`. It links to **`/learn/glossary`**, a
+searchable A–Z list of every term in `src/content/glossary.ts`, each linking to where it
+appears.
 
 ### 2. Accuracy doc (prompt 9.1)
 
@@ -63,6 +76,12 @@ and the known simplifications. `tests/accuracy.test.ts` fails if a citation used
 scenario is missing from it.
 
 ### 3. Disclaimers (on `/about` and in the portfolio entry)
+
+The disclaimers start with **"What this means for you"** (`docs/UIUX.md` A1): a short
+plain-language version for a student first ("The numbers match your textbook, not your
+laptop. A real kernel also handles interrupts, several cores, …"), then the precise list
+below, then how accuracy is checked. Module headers link here with one line ("Textbook
+model, not a real kernel → what that means", `/about#model`); there is no banner.
 
 - "Models the textbook algorithms, not a real kernel. There are no interrupts, no
   multicore and no real hardware timings. I/O is a fixed wait with no device queue, and
@@ -115,7 +134,11 @@ tie-break stated in the UI; side-by-side policy comparison.
 
 ## Acceptance criteria
 
-- [ ] Five lessons with working checkpoints; `/learn` tracks completion
+- [ ] Five lessons at `/learn/<module>` with working checkpoints; `/learn` shows the
+      learning path and tracks completion (still shown after a reload)
+- [ ] `/learn/glossary` lists every glossary term, is searchable, and each term links to
+      where it appears
+- [ ] `/about` and the portfolio disclaimers open with "What this means for you"
 - [ ] `docs/ACCURACY.md` exists and the accuracy test passes
 - [ ] axe clean on every route in both themes; keyboard walk passes for every module
 - [ ] Bundle budgets pass; React Flow only in `/deadlock`
@@ -134,10 +157,13 @@ steps 1-3. Look at ../internet-visualizer/docs/CONTENT-STYLE.md and docs/ACCURAC
 voice and format.
 
 Add the Checkpoint and LessonStep components, one MDX walkthrough per ready module (the
-coverage in the step 1 table), with checkpoint answers computed from the core runs and
-never hard-coded, plus the "Real systems" box with citations. Build /learn with
-completion from useProgress. Write docs/ACCURACY.md from every module's citations and
-rules.ts, tests/accuracy.test.ts, and the /about disclaimers from step 3.
+coverage in the step 1 table) served at /learn/<module>, with checkpoint answers computed
+from the core runs and never hard-coded, plus the "Real systems" box with citations.
+Build /learn as the learning path with completion from useProgress, and /learn/glossary
+from src/content/glossary.ts. Write docs/ACCURACY.md from every module's citations and
+rules.ts (including each rule's plain and whyItMatters text), tests/accuracy.test.ts,
+and the /about disclaimers from step 3, opening with "What this means for you".
+docs/UIUX.md prompt U4.1 covers the visual side of these pages and runs with this one.
 
 Done when `npm run verify` passes. Commit.
 ```

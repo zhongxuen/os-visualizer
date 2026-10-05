@@ -98,6 +98,7 @@ exists. Scheduling is the largest core and is split into two prompts (4.core-a, 
 | **W4** | 5.1, 9.1 | Compare needs the finished scheduling core. 9.1 writes lessons for modules that exist. |
 | **W5** | 9.2 → 9.3 → 9.4 | Quality pass, deploy, portfolio entry. |
 | **later** | 10.core → 10.ui | Phase 2. |
+| **U0–U5** | See [`docs/UIUX.md` §9](../UIUX.md#9-waves-and-prompts) | UI/UX and motion waves. They run alongside W1–W5 (U0 before W1, U1 with 3.1, U2 with 3.2, U3 after each `*.ui`, U4 with 9.1, U5 with 9.2), not after them. |
 
 **Sequential alternative:** run the files in number order, core prompt then UI prompt.
 That's the lowest-risk option for one person and takes about the same total effort.

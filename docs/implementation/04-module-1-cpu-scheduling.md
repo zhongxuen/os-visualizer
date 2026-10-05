@@ -24,7 +24,7 @@ src/core/sched/
   policies/          fcfs.ts sjf.ts srtf.ts priority.ts rr.ts mlfq.ts   (each: pick/preempt rules)
   schedule.ts        schedule(workload, policy) => SimResult<SchedEvent>
   metrics.ts         per-process and aggregate metrics
-  rules.ts           the conventions list shown in the RulesPanel
+  rules.ts           the conventions list shown in the RulesPanel (id, text, plain, whyItMatters)
   presets.ts  events.ts  citations.ts  scenarios.ts  state.ts  index.ts
 tests/fixtures/sched/*.test.ts
 tests/oracle/sched.test.ts       (property tests)
@@ -80,7 +80,12 @@ job that gives up the CPU before its quantum ends keeps its level; `boostEvery` 
 job to the top queue.
 
 `rules.ts` exports these rules as data. The RulesPanel renders them, and each rule has at
-least one test named after it.
+least one test named after it. Besides its `id` and formal `text`, every rule carries two
+strings for students (`docs/UIUX.md` G4): **`plain`**, one plain sentence ("If two
+processes have the same remaining time, the one already running keeps the CPU"), and
+**`whyItMatters`**, what changes if a book uses the other convention ("A book that
+preempts on a tie will show one extra context switch here"). They are text only and
+change no logic.
 
 ### 3. Events
 
@@ -154,6 +159,21 @@ Property tests (fast-check, random valid workloads, every policy):
 - [ ] `/scheduling`: edit a workload (form, keyboard only), pick a policy, step through;
       Gantt, queues, inspector and metrics stay in sync; "Show as table" works
 - [ ] The URL reproduces the workload, policy and step; the workload can be saved locally
+- [ ] Every rule in `rules.ts` has a non-empty `plain` and `whyItMatters`
+- [ ] UIUX §2.3 S1–S8: burst builder (with a text field for power users); "Priority
+      (0 = highest)" header and a rule chip when priority decides; hovering or focusing a
+      metrics row draws the response / turnaround / waiting brackets on its Gantt row;
+      linked highlighting of a process across editor, queues, Gantt and metrics; the CS
+      note under the Gantt legend; the Gantt fits 300 ticks at 390 px and follows the
+      cursor when zoomed; MLFQ lanes labelled with quantum and allotment and a "Which rule
+      fired?" chip on demote and boost; "Waiting: P2 (arrived t=1, longer burst)" for the
+      top two ready processes on dispatch steps
+- [ ] UIUX §7.2.1 animations, through the shared motion primitives only: bar extends by
+      `scaleX`, cursor glides, CS hatching wipes in, preemption notch; queue chips slide
+      in, FLIP into the CPU slot and to the queue tail behind same-tick arrivals, quantum
+      ring timer, I/O countdown badge, done tray; MLFQ demote/boost moves; aging `<Ticker>`;
+      metrics `<Ticker>` and bracket `<DrawPath>`; Rule-used chip pop; editor row expand
+- [ ] The end-of-run card offers a contrasting preset and links to /compare
 - [ ] axe clean; `npm run verify` passes
 
 ---
@@ -166,7 +186,8 @@ Property tests (fast-check, random valid workloads, every policy):
 Read docs/implementation/00-overview.md and docs/implementation/04-module-1-cpu-scheduling.md.
 
 In src/core/sched only: implement the Zod workload/policy schema with its limits, the
-shared tick loop in kernel.ts with the conventions in step 2 exactly as written, rules.ts,
+shared tick loop in kernel.ts with the conventions in step 2 exactly as written, rules.ts
+(each rule with `plain` and `whyItMatters` strings),
 metrics.ts, and the FCFS, SJF, SRTF, Priority (preemptive, non-preemptive, aging) and RR
 policies. Replace the placeholder events.ts with SchedEvent/SchedSnapshot (step 3); every
 dispatch/preempt label says why. Add citations (OSTEP ch. 7, OSC10 ch. 5), the presets
@@ -198,17 +219,30 @@ change in the commit. Done when `npm run verify` passes. Commit.
 ### Prompt 4.ui — the scheduling module (wave W3, after 3.2)
 
 ```
-Read docs/implementation/04-module-1-cpu-scheduling.md and 03-ui-shell-and-visual-blocks.md.
+Read docs/implementation/04-module-1-cpu-scheduling.md, 03-ui-shell-and-visual-blocks.md
+and docs/UIUX.md §2.2, §2.3 (CPU Scheduling), §6 and §7.2.1.
 
-Build src/modules/scheduling and the /scheduling route using only shared components:
-WorkloadEditor (add/remove processes, arrival, bursts incl. optional I/O, priority, CS cost;
-fully keyboard operable; validation messages from the Zod schema), PolicyPicker (with
-quantum, aging and MLFQ level controls), preset menu, GanttChart (MLFQ lanes when
-relevant), QueueView, StepInspector, RulesPanel and MetricsTable with the metric
-definitions. Wire useShareState and "Save workload" via useProgress. Export the renderers
-Compare will reuse from src/modules/scheduling/index.ts.
+Build src/modules/scheduling and the /scheduling route inside the shared workspace, using
+only shared components: WorkloadEditor (add/remove processes, arrival, a burst builder for
+CPU and optional I/O bursts with a text field for power users, priority under a
+"Priority (0 = highest)" header, CS cost; fully keyboard operable; one human validation
+message per field, mapped from the Zod errors), PolicyPicker (with quantum, aging and MLFQ
+level controls; presets first, Edit reveals controls, advanced options under "More
+options"), preset menu, GanttChart (fit-to-width with zoom, MLFQ lanes labelled with
+quantum and allotment when relevant, the CS note under the legend), QueueView,
+StepInspector (Rule-used chip, "Which rule fired?" on demote and boost, "Waiting: …" for
+the top two ready processes on dispatch steps), RulesPanel and MetricsTable with the
+metric definitions and directions. Hovering or focusing a metrics row draws the response,
+turnaround and waiting brackets on its Gantt row; hovering or focusing a process anywhere
+highlights it everywhere. Wrap the first use of each glossary term in <Term>. Add every
+animation in UIUX §7.2.1 through the shared motion primitives only. Supply the
+EndOfRunCard's "Try this next" preset and the link to /compare. Wire useShareState and
+"Save workload" via useProgress. Export the renderers Compare will reuse from
+src/modules/scheduling/index.ts.
 
 Flip the registry entry to 'ready'. Add an e2e test that loads the OSC10 SJF preset, steps
-to the end with the keyboard and checks the average waiting time reads 7, plus axe.
+to the end with the keyboard and checks the average waiting time reads 7; an e2e that
+hovers a metrics row and checks the three brackets appear; the reduced-motion e2e that
+steps forward and asserts no element has a running animation; plus axe.
 Done when `npm run verify` and `npm run test:e2e` pass. Commit.
 ```

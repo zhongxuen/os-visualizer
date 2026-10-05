@@ -24,7 +24,8 @@ src/core/replace/
   replace.ts         replace(refString, frames, policy) => SimResult<ReplEvent>
   curve.ts           faultsByFrames(refString, policy, 1..8) => number[]
   generate.ts        seeded workloads: uniform (no locality), 80/20, looping-sequential
-  presets.ts  events.ts  citations.ts  scenarios.ts  state.ts  rules.ts  index.ts
+  rules.ts           conventions for the RulesPanel (id, text, plain, whyItMatters)
+  presets.ts  events.ts  citations.ts  scenarios.ts  state.ts  index.ts
 tests/fixtures/replace/*.test.ts
 tests/oracle/replace.test.ts
 src/modules/replacement/         InputPanel, PolicyTabs, ReplacementView, CurvePanel, BeladyPanel
@@ -47,6 +48,11 @@ src/app/(modules)/replacement/page.tsx
   sweeps: bit 1 → clear it and move on; bit 0 → evict that frame. The hand starts at frame 0.
 - Every reference is its own phase; its events are `hit`, or `fault` → `choose victim`
   (with the reason) → `evict` → `load`.
+
+Besides its `id` and formal `text`, every rule carries **`plain`** (one plain sentence for
+students) and **`whyItMatters`** (what changes if a book uses another convention, e.g. "A
+book that starts the Clock hand elsewhere, or doesn't advance it after a load, may evict a
+different page") (`docs/UIUX.md` G4). They are text only and change no logic.
 
 ### 2. Events
 
@@ -113,6 +119,22 @@ Properties (fast-check, seeded):
 - [ ] `/replacement`: type or generate a string, pick frames and policy, step through; the
       FrameStrip, Clock hand/use bits, inspector and metrics stay in sync
 - [ ] BeladyPanel and CurvePanel work, with table views
+- [ ] Every rule in `rules.ts` has a non-empty `plain` and `whyItMatters`
+- [ ] UIUX §2.3 R1–R5: "cold" and "capacity" are `<Term>`s with a split bar in the
+      metrics; OPT is stated as the unbuildable yardstick and shows "next use in n" under
+      each frame (OPT only); the Belady callout ("4 frames, *more* faults than 3") appears
+      exactly when the 4-frame fault count passes the 3-frame one, reduced-motion safe; the
+      frame strip fits the width at 390 px with sticky row labels and keeps the current
+      column in view; the reference-string field accepts spaces or commas, shows parsed
+      chips live and gives an error per bad token
+- [ ] UIUX §7.2.4 animations, through the shared motion primitives only: current
+      reference chip lifts, past ones marked H/F; columns slide in; hit pulse; victim drops
+      out, new page drops in, with the victim's reason as a label; Clock ring with a
+      rotating hand and flipping use bits whose resting position matches the snapshot on
+      every step; OPT "next use" and LRU "last used" labels with a ring on the chosen one;
+      Belady counters roll and the callout slides in; curves draw once with the anomaly
+      ringed
+- [ ] The end-of-run card offers a contrasting preset and links to /deadlock
 - [ ] URL round-trips; axe clean; `npm run verify` passes
 
 ---
@@ -125,7 +147,8 @@ Properties (fast-check, seeded):
 Read docs/implementation/00-overview.md and docs/implementation/07-module-4-page-replacement.md.
 
 In src/core/replace only: implement the input schema and limits, FIFO, LRU, OPT and Clock
-following the rules in step 1 exactly (including the OPT and Clock conventions), replace()
+following the rules in step 1 exactly (including the OPT and Clock conventions), rules.ts
+(each rule with `plain` and `whyItMatters` strings), replace()
 with one phase per reference and a victim label that says why, faultsByFrames, and the
 seeded generators. Replace the placeholder events.ts with ReplEvent. Add OSTEP ch. 22 and
 OSC10 ch. 10 citations, presets, scenarios.ts and the state.ts branch.
@@ -138,15 +161,27 @@ Done when `npm run verify` passes. Commit on feat/replace-core.
 ### Prompt 7.ui — replacement module (wave W3, after 3.2)
 
 ```
-Read docs/implementation/07-module-4-page-replacement.md and 03-ui-shell-and-visual-blocks.md.
+Read docs/implementation/07-module-4-page-replacement.md, 03-ui-shell-and-visual-blocks.md
+and docs/UIUX.md §2.2, §2.3 (Page Replacement), §6 and §7.2.4.
 
-Build src/modules/replacement and the /replacement route from shared components: an input
-panel (type a string or generate one with a seed), frame count, policy tabs, FrameStrip
-(Clock mode shows use bits and the hand), StepInspector, RulesPanel, MetricsTable (hits,
-faults, cold vs capacity, hit rate), the BeladyPanel (FIFO 3 vs 4 frames side by side on
-one timeline) and the CurvePanel. Wire presets and useShareState.
+Build src/modules/replacement and the /replacement route inside the shared workspace, from
+shared components: an input panel (type a string or generate one with a seed; spaces or
+commas accepted, parsed chips shown live, one human error per bad token; presets first,
+Edit reveals controls), frame count, policy tabs, FrameStrip (fit to width, sticky row
+labels, current column kept in view; Clock mode as a ring with the hand and use bits; OPT
+shows "next use in n" under each frame, LRU "last used t"), StepInspector (Rule-used
+chip), RulesPanel, MetricsTable (hits, faults, a cold vs capacity split bar, hit rate),
+the BeladyPanel (FIFO 3 vs 4 frames side by side on one timeline, with the "4 frames,
+more faults than 3" callout) and the CurvePanel. Say plainly that OPT can't be built and is
+the yardstick. Wrap the first use of each glossary term (cold fault, capacity fault,
+victim, use bit, Belady's anomaly, …) in <Term>. Add every animation in UIUX §7.2.4
+through the shared motion primitives only. Read the page number carried over from
+/translation via ?s=. Supply the EndOfRunCard's "Try this next" preset and next-module
+link. Wire presets and useShareState.
 
 Flip the registry entry to 'ready'. e2e: load the Belady preset, step both runs to the end
-and check 9 vs 10 faults, plus axe. Done when `npm run verify` and `npm run test:e2e`
-pass. Commit.
+and check 9 vs 10 faults and that the callout appears on the step where 4-frame faults
+pass 3-frame faults; check the Clock hand position matches the snapshot on every step of a
+Clock preset; the reduced-motion e2e; plus axe. Done when `npm run verify` and
+`npm run test:e2e` pass. Commit.
 ```
