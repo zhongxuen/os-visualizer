@@ -102,7 +102,7 @@ describe('WorkloadEditor', () => {
     const bursts = screen.getByLabelText('P1 bursts');
     await user.clear(bursts);
     await user.type(bursts, '3, 2');
-    expect(screen.getByText(/must start and end with CPU/)).toBeInTheDocument();
+    expect(screen.getByText(/last one must be a CPU burst/)).toBeInTheDocument();
     expect(bursts).toHaveAttribute('aria-invalid', 'true');
 
     await user.type(bursts, ', 4');

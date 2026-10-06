@@ -1,11 +1,12 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { expectNoAxeViolations } from '@/components/testing/axe';
 
 import {
   axisLabels,
+  axisLabelsFor,
   clipSegments,
   GanttChart,
   ganttSummary,
@@ -133,5 +134,94 @@ describe('GanttChart', () => {
     await expectNoAxeViolations(container);
     await user.click(screen.getByRole('button', { name: 'Show as table' }));
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('GanttChart, optional extras (U3.1)', () => {
+  it('spaces fitted axis labels at least 28 px apart and always ends on the last tick', () => {
+    const labels = axisLabelsFor(300, 1);
+    expect(labels.at(-1)).toBe(300);
+    for (let i = 1; i < labels.length; i += 1) {
+      expect(labels[i]! - labels[i - 1]!).toBeGreaterThanOrEqual(28);
+    }
+    expect(axisLabelsFor(9, 32)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  });
+
+  it('fits 300 ticks into a phone-width box', () => {
+    const width = vi
+      .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+      .mockReturnValue(358);
+    try {
+      const long: GanttSegment[] = [{ start: 0, end: 300, kind: 'run', pid: 1 }];
+      render(<GanttChart segments={long} tick={300} zoom="fit" />);
+      const svg = screen.getByRole('img');
+      expect(Number(svg.getAttribute('width'))).toBeLessThanOrEqual(358);
+      expect(svg).toHaveAttribute('data-zoom', 'fit');
+    } finally {
+      width.mockRestore();
+    }
+  });
+
+  it('scrolls to keep the cursor in view when zoomed', () => {
+    const client = vi
+      .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+      .mockReturnValue(300);
+    const scroll = vi
+      .spyOn(HTMLElement.prototype, 'scrollWidth', 'get')
+      .mockReturnValue(5000);
+    try {
+      const long: GanttSegment[] = [{ start: 0, end: 300, kind: 'run', pid: 1 }];
+      render(<GanttChart segments={long} tick={200} zoom={16} followCursor />);
+      const box = screen.getByRole('group', { name: /scrollable/ });
+      expect(box.scrollLeft).toBeGreaterThan(0);
+    } finally {
+      client.mockRestore();
+      scroll.mockRestore();
+    }
+  });
+
+  it('dims other processes, reports hovers, and draws brackets and marks', async () => {
+    const user = userEvent.setup();
+    const onPidHover = vi.fn();
+    const { container } = render(
+      <GanttChart
+        segments={SEGMENTS}
+        tick={9}
+        highlightPid={2}
+        onPidHover={onPidHover}
+        brackets={{
+          pid: 2,
+          arrival: 1,
+          firstRun: 4,
+          completion: 6,
+          waiting: [{ start: 1, end: 4 }],
+        }}
+        marks={[{ tick: 3, label: 'P1 preempted at t = 3' }]}
+      />,
+    );
+    expect(container.querySelector('g[data-pid="2"][data-highlight]')).not.toBeNull();
+    expect(container.querySelector('g[data-pid="1"]')).toHaveAttribute('opacity', '0.35');
+    expect(container.querySelector('[data-bracket="response"]')).toHaveTextContent(
+      'response 3',
+    );
+    expect(container.querySelector('[data-bracket="turnaround"]')).toHaveTextContent(
+      'turnaround 5',
+    );
+    expect(container.querySelectorAll('[data-waiting]')).toHaveLength(1);
+    expect(container.querySelector('[data-mark] title')).toHaveTextContent(
+      'P1 preempted at t = 3',
+    );
+    await user.hover(container.querySelector('g[data-pid="3"]')!);
+    expect(onPidHover).toHaveBeenLastCalledWith(3);
+    await expectNoAxeViolations(container);
+  });
+
+  it('draws nothing extra when the extras are not passed', () => {
+    const { container } = render(<GanttChart segments={SEGMENTS} tick={9} />);
+    expect(container.querySelector('[data-zoom]')).toBeNull();
+    expect(
+      container.querySelector('[data-brackets], [data-mark], [data-highlight]'),
+    ).toBeNull();
+    expect(container.querySelector('clipPath')).toBeNull();
   });
 });

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { SchedulingView } from '@/modules/scheduling';
+import { SchedulingView } from '@/modules/scheduling/SchedulingView';
 
 export const metadata: Metadata = {
   title: 'CPU Scheduling',

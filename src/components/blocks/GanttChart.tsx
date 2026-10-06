@@ -1,7 +1,17 @@
 'use client';
 
-import { useId } from 'react';
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from 'react';
 
+import { DrawPath } from '@/components/motion/DrawPath';
+import { DURATION } from '@/components/motion/tokens';
+import { useStepTransition } from '@/components/motion/useStepTransition';
 import { ProcessPatternDefs } from '@/components/shell/ProcessPatternDefs';
 import { processPatternId, processSlot } from '@/components/shell/processPalette';
 import { cn } from '@/lib/cn';
@@ -28,8 +38,23 @@ import { ChartTableToggle } from './ChartTableToggle';
  * a demotion shows as a bar moving down a row. Without `lanes` there is one row, "CPU".
  *
  * Accessible as an image with a text summary of what has run so far, and as a table
- * through `ChartTableToggle`. No tweening: the cursor jumps, so reduced motion has
- * nothing to turn off.
+ * through `ChartTableToggle`. No tweening by default: the cursor jumps.
+ *
+ * **Optional extras (U3.1).** Every one is off unless passed, so a chart without them
+ * draws exactly as before:
+ *
+ * - `zoom`: `'fit'` scales the axis to the chart's width (300 ticks fit a phone), a
+ *   number is pixels per tick with a sideways scroll. Default: 32 px per tick.
+ * - `followCursor`: when the chart scrolls, keep the cursor in view.
+ * - `highlightPid` / `onPidHover`: linked highlighting. The chart dims every other
+ *   process's bars, and reports the process under the pointer.
+ * - `brackets`: one process's response and turnaround drawn as brackets above the bars,
+ *   and its waiting time shaded on its row (docs/UIUX.md S3). Passing the prop at all,
+ *   even `null`, reserves the room for them, so hovering never shifts the layout.
+ * - `marks`: small notches at a tick (a preemption, a quantum expiry).
+ * - `animate`: forward steps glide the cursor and wipe the newest tick in (§7.2.1), for
+ *   the step's `useStepTransition` duration; back, jump, reduced motion and speeds 4-5
+ *   stay instant.
  */
 
 export type GanttKind = 'run' | 'idle' | 'cs';
@@ -52,6 +77,27 @@ export interface GanttLane {
   label: string;
 }
 
+/** One process's metrics drawn on the chart (S3). `null` values are not known yet. */
+export interface GanttBrackets {
+  pid: number;
+  arrival: number;
+  /** First tick it ran: arrival -> first run is the response time. */
+  firstRun: number | null;
+  /** Completion: arrival -> completion is the turnaround time. */
+  completion: number | null;
+  /** Stretches spent ready but not running (the waiting time), shaded. */
+  waiting: readonly { start: number; end: number }[];
+  /** The lane to shade in (MLFQ). Defaults to every lane. */
+  lane?: number;
+}
+
+/** A notch at a tick, e.g. "P1 preempted". */
+export interface GanttMark {
+  tick: number;
+  label: string;
+  lane?: number;
+}
+
 export interface GanttChartProps {
   segments: readonly GanttSegment[];
   /** The cursor: ticks elapsed. Bars after it are hidden or faded. */
@@ -64,6 +110,20 @@ export interface GanttChartProps {
   /** Names the chart, e.g. "Gantt chart, Round Robin". */
   title?: string;
   className?: string;
+  /** `'fit'`: the whole axis fits the width. A number: pixels per tick. Default 32. */
+  zoom?: 'fit' | number;
+  /** Scroll so the cursor stays in view (when the chart is wider than its box). */
+  followCursor?: boolean;
+  /** Linked highlighting: this process's bars stand out, every other run bar dims. */
+  highlightPid?: number | null;
+  /** The process under the pointer, or `null` when it leaves the bars. */
+  onPidHover?: (pid: number | null) => void;
+  /** Response, turnaround and waiting for one process (S3). */
+  brackets?: GanttBrackets | null;
+  /** Notches at ticks (preemptions, quantum expiries). */
+  marks?: readonly GanttMark[];
+  /** Glide the cursor and wipe the newest tick in on a forward step. */
+  animate?: boolean;
 }
 
 const UNIT = 32;
@@ -72,6 +132,10 @@ const BAR_PAD = 4;
 const TOP = 24;
 const AXIS_H = 26;
 const RIGHT_PAD = 16;
+/** Room above the lanes for the two brackets (S3). */
+const BRACKET_H = 34;
+/** The width a fitted chart assumes before it has been measured. */
+const FIT_FALLBACK = 640;
 
 /** The part of each segment before the cursor; segments wholly after it are dropped. */
 export function clipSegments(
@@ -126,18 +190,42 @@ export function axisLabels(endTick: number): number[] {
   return labels;
 }
 
+/**
+ * Axis labels for a given scale: a "nice" step (1, 2, 5, 10, 20, 50, 100) at least
+ * `minGap` pixels apart, always ending on `endTick`.
+ */
+export function axisLabelsFor(endTick: number, unit: number, minGap = 28): number[] {
+  const steps = [1, 2, 5, 10, 20, 50, 100];
+  const step = steps.find((s) => s * unit >= minGap) ?? 100;
+  const labels: number[] = [];
+  for (let t = 0; t <= endTick; t += step) labels.push(t);
+  const last = labels[labels.length - 1]!;
+  if (last !== endTick) {
+    // Drop the last regular label if it would collide with the end label.
+    if ((endTick - last) * unit < minGap && labels.length > 1) labels.pop();
+    labels.push(endTick);
+  }
+  return labels;
+}
+
 function Bar({
   segment,
   x,
   y,
   hatchId,
   faded,
+  dimmed,
+  highlighted,
+  onHover,
 }: {
   segment: GanttSegment;
   x: (t: number) => number;
   y: number;
   hatchId: string;
   faded?: boolean;
+  dimmed?: boolean;
+  highlighted?: boolean;
+  onHover?: (pid: number | null) => void;
 }) {
   const left = x(segment.start);
   const width = x(segment.end) - left;
@@ -153,16 +241,37 @@ function Bar({
   else if (segment.kind === 'cs') fill = `url(#${hatchId})`;
   else fill = 'var(--idle-fill)';
 
+  const hover =
+    onHover && segment.kind === 'run'
+      ? {
+          onMouseEnter: () => onHover(segment.pid ?? null),
+          onMouseLeave: () => onHover(null),
+        }
+      : {};
+
   return (
-    <g opacity={faded ? 0.3 : undefined} data-kind={segment.kind}>
+    <g
+      opacity={faded ? 0.3 : dimmed ? 0.35 : undefined}
+      data-kind={segment.kind}
+      data-pid={segment.kind === 'run' ? segment.pid : undefined}
+      data-highlight={highlighted ? '' : undefined}
+      {...hover}
+    >
       <rect
         x={left}
         y={y + BAR_PAD}
         width={width}
         height={height}
-        rx={3}
+        rx={Math.min(3, width / 2)}
         fill={fill}
-        stroke={segment.kind === 'run' ? 'var(--proc-ink)' : 'var(--idle-stroke)'}
+        stroke={
+          highlighted
+            ? 'var(--accent)'
+            : segment.kind === 'run'
+              ? 'var(--proc-ink)'
+              : 'var(--idle-stroke)'
+        }
+        strokeWidth={highlighted ? 2.5 : undefined}
       />
       {fits ? (
         <>
@@ -196,6 +305,68 @@ function Bar({
   );
 }
 
+/** The width of `ref`'s box, tracked; `null` until measured (and on the server). */
+function useBoxWidth(ref: RefObject<HTMLElement | null>, active: boolean) {
+  const [width, setWidth] = useState<number | null>(null);
+  useEffect(() => {
+    const node = ref.current;
+    if (!active || !node) return;
+    const measure = () => setWidth(node.clientWidth || null);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [ref, active]);
+  return width;
+}
+
+function Bracket({
+  kind,
+  from,
+  to,
+  y,
+  label,
+  x,
+  trigger,
+}: {
+  kind: 'response' | 'turnaround';
+  from: number;
+  to: number;
+  y: number;
+  label: string;
+  x: (t: number) => number;
+  trigger: string;
+}) {
+  const x1 = x(from);
+  const x2 = x(to);
+  const d =
+    x2 - x1 < 1
+      ? `M ${x1} ${y + 7} V ${y}`
+      : `M ${x1} ${y + 7} V ${y} H ${x2} V ${y + 7}`;
+  return (
+    <g data-bracket={kind}>
+      <DrawPath
+        d={d}
+        trigger={trigger}
+        fill="none"
+        stroke="var(--accent)"
+        strokeWidth={1.5}
+      />
+      <text
+        x={x1 + 4}
+        y={y - 3}
+        fontSize={11}
+        fontWeight={600}
+        className="font-mono"
+        fill="var(--text-secondary)"
+      >
+        {label}
+      </text>
+    </g>
+  );
+}
+
 export function GanttChart({
   segments,
   tick,
@@ -204,9 +375,23 @@ export function GanttChart({
   future = 'hide',
   title = 'Gantt chart',
   className,
+  zoom,
+  followCursor = false,
+  highlightPid = null,
+  onPidHover,
+  brackets,
+  marks,
+  animate = false,
 }: GanttChartProps) {
   const rawId = useId();
-  const hatchId = `gantt-cs-${rawId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const safeId = rawId.replace(/[^a-zA-Z0-9_-]/g, '');
+  const hatchId = `gantt-cs-${safeId}`;
+  const clipId = `gantt-clip-${safeId}`;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fit = zoom === 'fit';
+  const boxWidth = useBoxWidth(scrollRef, fit);
+  const { scale } = useStepTransition();
+  const moveMs = animate ? scale(DURATION.move) : 0;
 
   const end = Math.max(
     1,
@@ -215,34 +400,95 @@ export function GanttChart({
   const cursor = Math.max(0, Math.min(tick, end));
   const rows = lanes && lanes.length > 0 ? lanes : [{ id: 0, label: 'CPU' }];
   const gutter = Math.max(48, ...rows.map((row) => row.label.length * 7 + 16));
-  const width = gutter + end * UNIT + RIGHT_PAD;
-  const lanesBottom = TOP + rows.length * LANE_H;
+  const unit = fit
+    ? Math.max(0.5, ((boxWidth ?? FIT_FALLBACK) - 2 - gutter - RIGHT_PAD) / end)
+    : typeof zoom === 'number'
+      ? zoom
+      : UNIT;
+  const width = gutter + end * unit + RIGHT_PAD;
+  const top = TOP + (brackets !== undefined ? BRACKET_H : 0);
+  const lanesBottom = top + rows.length * LANE_H;
   const height = lanesBottom + AXIS_H;
-  const x = (t: number) => gutter + t * UNIT;
+  const x = (t: number) => gutter + t * unit;
   const laneY = (id: number | undefined) => {
     const index = rows.findIndex((row) => row.id === id);
-    return TOP + Math.max(0, index) * LANE_H;
+    return top + Math.max(0, index) * LANE_H;
   };
 
   const visible = clipSegments(segments, cursor);
   const summary = ganttSummary(segments, cursor, { title, lanes });
   const cursorAnchor = cursor === end ? 'end' : cursor === 0 ? 'start' : 'middle';
+  const labels = zoom === undefined ? axisLabels(end) : axisLabelsFor(end, unit);
+  const minorTicks = unit >= 4;
+
+  // Keep the cursor in view while the chart is wider than its box.
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!followCursor || !node || node.scrollWidth <= node.clientWidth) return;
+    const at = gutter + cursor * unit;
+    const margin = Math.min(64, node.clientWidth / 4);
+    if (
+      at < node.scrollLeft + margin ||
+      at > node.scrollLeft + node.clientWidth - margin
+    ) {
+      node.scrollLeft = Math.max(0, at - node.clientWidth / 2);
+    }
+  }, [followCursor, cursor, unit, gutter]);
+
+  const glide = (px: number): CSSProperties | undefined =>
+    animate
+      ? {
+          transform: `translateX(${px}px)`,
+          transition: moveMs > 0 ? `transform ${moveMs}ms var(--ease-out)` : undefined,
+        }
+      : undefined;
+
+  const dimOthers = highlightPid !== null && highlightPid !== undefined;
+  const bar = (segment: GanttSegment, key: string, faded?: boolean) => {
+    const mine = segment.kind === 'run' && segment.pid === highlightPid;
+    return (
+      <Bar
+        key={key}
+        segment={segment}
+        x={x}
+        y={laneY(segment.lane)}
+        hatchId={hatchId}
+        faded={faded}
+        dimmed={!faded && dimOthers && segment.kind === 'run' && !mine}
+        highlighted={!faded && dimOthers && mine}
+        onHover={onPidHover}
+      />
+    );
+  };
+
+  // S3: what is known about the bracketed process at the cursor.
+  const shown = brackets ?? null;
+  const shadeTop = shown && shown.lane !== undefined ? laneY(shown.lane) : top;
+  const shadeBottom = shown && shown.lane !== undefined ? shadeTop + LANE_H : lanesBottom;
+  const waiting = shown
+    ? shown.waiting
+        .filter((gap) => gap.start < cursor)
+        .map((gap) => ({ start: gap.start, end: Math.min(gap.end, cursor) }))
+    : [];
 
   const chart = (
     <div
+      ref={scrollRef}
       // Scrolls sideways on a narrow screen, so it must be reachable by keyboard.
       tabIndex={0}
       role="group"
       aria-label={`${title}, scrollable`}
       className="border-border bg-surface-raised overflow-x-auto rounded-lg border"
+      onMouseLeave={onPidHover ? () => onPidHover(null) : undefined}
     >
       <svg
         role="img"
         aria-label={summary}
         viewBox={`0 0 ${width} ${height}`}
-        width={width}
-        height={height}
+        width={fit && boxWidth === null ? '100%' : width}
+        height={fit && boxWidth === null ? undefined : height}
         className="block max-w-none"
+        data-zoom={zoom === undefined ? undefined : String(zoom)}
       >
         <defs>
           <pattern
@@ -255,6 +501,18 @@ export function GanttChart({
             <rect width={6} height={6} fill="var(--idle-fill)" />
             <rect width={2} height={6} fill="var(--idle-stroke)" />
           </pattern>
+          {animate ? (
+            <clipPath id={clipId}>
+              {/* The revealed part: everything left of the cursor, gliding with it. */}
+              <rect
+                x={-width}
+                y={0}
+                width={width}
+                height={height}
+                style={glide(x(cursor))}
+              />
+            </clipPath>
+          ) : null}
         </defs>
         <ProcessPatternDefs />
 
@@ -263,14 +521,14 @@ export function GanttChart({
             <line
               x1={gutter}
               x2={x(end)}
-              y1={TOP + (i + 1) * LANE_H}
-              y2={TOP + (i + 1) * LANE_H}
+              y1={top + (i + 1) * LANE_H}
+              y2={top + (i + 1) * LANE_H}
               stroke="var(--border)"
               strokeOpacity={0.4}
             />
             <text
               x={gutter - 8}
-              y={TOP + i * LANE_H + LANE_H / 2}
+              y={top + i * LANE_H + LANE_H / 2}
               textAnchor="end"
               dominantBaseline="central"
               fontSize={12}
@@ -281,29 +539,82 @@ export function GanttChart({
           </g>
         ))}
 
+        {/* S3: the waiting stretches, shaded under the bars. */}
+        {waiting.map((gap) => (
+          <rect
+            key={`w${gap.start}`}
+            data-waiting=""
+            x={x(gap.start)}
+            y={shadeTop + 1}
+            width={Math.max(1, x(gap.end) - x(gap.start))}
+            height={shadeBottom - shadeTop - 2}
+            fill="var(--warn)"
+            fillOpacity={0.16}
+            stroke="var(--warn)"
+            strokeDasharray="3 2"
+          />
+        ))}
+
         {future === 'fade'
           ? segments
               .filter((segment) => segment.end > cursor)
-              .map((segment, i) => (
-                <Bar
-                  key={`f${i}`}
-                  segment={{ ...segment, start: Math.max(segment.start, cursor) }}
-                  x={x}
-                  y={laneY(segment.lane)}
-                  hatchId={hatchId}
-                  faded
-                />
-              ))
+              .map((segment, i) =>
+                bar(
+                  { ...segment, start: Math.max(segment.start, cursor) },
+                  `f${i}`,
+                  true,
+                ),
+              )
           : null}
-        {visible.map((segment, i) => (
-          <Bar
-            key={`v${i}`}
-            segment={segment}
-            x={x}
-            y={laneY(segment.lane)}
-            hatchId={hatchId}
-          />
-        ))}
+        <g clipPath={animate ? `url(#${clipId})` : undefined}>
+          {visible.map((segment, i) => bar(segment, `v${i}`))}
+        </g>
+
+        {/* Notches: preemptions and quantum expiries. */}
+        {(marks ?? [])
+          .filter((mark) => mark.tick <= cursor)
+          .map((mark, i) => {
+            const y = laneY(mark.lane);
+            const mx = x(mark.tick);
+            return (
+              <path
+                key={`m${i}`}
+                data-mark=""
+                d={`M ${mx - 4} ${y} L ${mx + 4} ${y} L ${mx} ${y + 6} Z`}
+                fill="var(--fg)"
+              >
+                <title>{mark.label}</title>
+              </path>
+            );
+          })}
+
+        {/* S3: the brackets above the lanes. */}
+        {shown ? (
+          <g data-brackets={shown.pid}>
+            {shown.firstRun !== null && shown.firstRun <= cursor ? (
+              <Bracket
+                kind="response"
+                from={shown.arrival}
+                to={shown.firstRun}
+                y={TOP + 2}
+                x={x}
+                trigger={`r${shown.pid}`}
+                label={`response ${shown.firstRun - shown.arrival}`}
+              />
+            ) : null}
+            {shown.completion !== null && shown.completion <= cursor ? (
+              <Bracket
+                kind="turnaround"
+                from={shown.arrival}
+                to={shown.completion}
+                y={TOP + 20}
+                x={x}
+                trigger={`t${shown.pid}`}
+                label={`turnaround ${shown.completion - shown.arrival}`}
+              />
+            ) : null}
+          </g>
+        ) : null}
 
         {/* Tick axis. */}
         <line
@@ -313,7 +624,7 @@ export function GanttChart({
           y2={lanesBottom}
           stroke="var(--border-strong)"
         />
-        {Array.from({ length: end + 1 }, (_, t) => (
+        {(minorTicks ? Array.from({ length: end + 1 }, (_, t) => t) : labels).map((t) => (
           <line
             key={t}
             x1={x(t)}
@@ -323,12 +634,12 @@ export function GanttChart({
             stroke="var(--border-strong)"
           />
         ))}
-        {axisLabels(end).map((t) => (
+        {labels.map((t) => (
           <text
             key={t}
             x={x(t)}
             y={lanesBottom + 16}
-            textAnchor="middle"
+            textAnchor={zoom !== undefined && t === end ? 'end' : 'middle'}
             fontSize={11}
             className="font-mono"
             fill="var(--text-muted)"
@@ -340,16 +651,17 @@ export function GanttChart({
         {/* The cursor. */}
         <g data-testid="gantt-cursor" data-tick={cursor}>
           <line
-            x1={x(cursor)}
-            x2={x(cursor)}
-            y1={TOP - 4}
+            x1={animate ? 0 : x(cursor)}
+            x2={animate ? 0 : x(cursor)}
+            y1={top - 4}
             y2={lanesBottom}
             stroke="var(--accent)"
             strokeWidth={2}
+            style={glide(x(cursor))}
           />
           <text
             x={x(cursor)}
-            y={TOP - 8}
+            y={top - 8}
             textAnchor={cursorAnchor}
             fontSize={11}
             fontWeight={600}
