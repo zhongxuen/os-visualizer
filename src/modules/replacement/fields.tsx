@@ -21,14 +21,49 @@ export function parseNumber(text: string): number {
   return /^\d+$/.test(t) ? Number(t) : Number.NaN;
 }
 
+/** A field's messages, in a live region that is always there, so each one is announced. */
 export function Messages({ id, messages }: { id: string; messages: readonly string[] }) {
-  if (messages.length === 0) return null;
   return (
-    <ul id={id} className="text-caption text-state-error flex flex-col gap-0.5">
-      {messages.map((m) => (
-        <li key={m}>{m}</li>
-      ))}
-    </ul>
+    <div aria-live="polite" className="contents">
+      {messages.length > 0 ? (
+        <ul id={id} className="text-caption text-state-error flex flex-col gap-0.5">
+          {messages.map((m) => (
+            <li key={m}>{m}</li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+/** A native disclosure (G10): a summary line that opens the controls under it. */
+export function Disclosure({
+  summary,
+  children,
+  defaultOpen = false,
+  className,
+}: {
+  summary: ReactNode;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+}) {
+  return (
+    <details
+      open={defaultOpen || undefined}
+      className={cn('group border-border rounded-lg border', className)}
+    >
+      <summary className="text-small hover:bg-surface-overlay focus-visible:outline-focus flex cursor-pointer list-none items-center gap-2 rounded-lg px-4 py-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
+        <span
+          aria-hidden="true"
+          className="text-fg-muted inline-block transition-transform group-open:rotate-90"
+        >
+          ▸
+        </span>
+        {summary}
+      </summary>
+      <div className="flex flex-col gap-3 px-4 pt-1 pb-4">{children}</div>
+    </details>
   );
 }
 

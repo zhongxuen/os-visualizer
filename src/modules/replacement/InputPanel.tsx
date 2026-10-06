@@ -13,21 +13,24 @@ import {
   type GenerateOptions,
   type WorkloadKind,
 } from '@/core/replace/generate';
-import {
-  formatRefString,
-  LIMITS,
-  parseRefString,
-  validateReplInput,
-  type ReplInput,
-} from '@/core/replace/input';
+import { formatRefString, LIMITS, type ReplInput } from '@/core/replace/input';
+import { cn } from '@/lib/cn';
 
-import { Panel, parseNumber, SelectField, TextField } from './fields';
+import { Disclosure, parseNumber, SelectField, TextField } from './fields';
+import {
+  generatorMessage,
+  refMessages,
+  refTokens,
+  validRefString,
+  type RefToken,
+} from './messages';
 
 /**
- * The inputs: type a reference string or generate one from a seed, and pick the frame
- * count. The string keeps what you type; only a valid input leaves the panel, and until
- * then the schema's messages show under the field. Remount (change `key`) to load a
- * different input.
+ * The inputs: type a reference string and pick the frame count; the generator waits
+ * under "More options" (G10). The string keeps what you type and is read back as chips
+ * underneath, one per reference, with each bad token marked and named in words (R5,
+ * G11). Only a valid input leaves the panel. Remount (change `key`) to load a different
+ * input.
  */
 
 const FRAME_OPTIONS = Array.from({ length: LIMITS.maxFrames }, (_, i) => ({
@@ -51,21 +54,40 @@ export interface InputPanelProps {
   onGenerated?: (options: GenerateOptions) => void;
 }
 
-/** Schema messages for the reference string, each naming its position. */
-export function refStringMessages(input: unknown): string[] {
-  const result = validateReplInput(input);
-  if (result.ok) return [];
-  return [
-    ...new Set(
-      result.issues
-        .filter((i) => i.path[0] === 'refString')
-        .map((i) =>
-          typeof i.path[1] === 'number'
-            ? `Reference ${i.path[1] + 1}: ${i.message}`
-            : i.message,
-        ),
-    ),
-  ];
+/** Messages for the reference string, in words, each naming its position (G11). */
+export function refStringMessages(text: string): string[] {
+  return refMessages(refTokens(text));
+}
+
+/** The typed references as chips (R5): a page each, or the token that is not one. */
+export function RefChips({ tokens }: { tokens: readonly RefToken[] }) {
+  if (tokens.length === 0) return null;
+  return (
+    <ol aria-label="References as read" className="flex flex-wrap gap-1">
+      {tokens.map((token, i) => (
+        <li
+          key={i}
+          data-bad={token.problem ? '' : undefined}
+          className={cn(
+            'text-caption min-w-6 rounded border px-1 text-center font-mono',
+            token.problem
+              ? 'border-state-error text-state-error border-2 border-dashed font-semibold'
+              : 'border-border bg-surface',
+          )}
+        >
+          {token.problem ? (
+            <>
+              <span aria-hidden="true">!</span>
+              {token.text}
+              <span className="sr-only">, not a page</span>
+            </>
+          ) : (
+            token.page
+          )}
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 export function InputPanel({
@@ -82,8 +104,8 @@ export function InputPanel({
     seed: String(generator.seed),
   });
 
-  const parsed = { ...input, refString: parseRefString(text) };
-  const messages = refStringMessages(parsed);
+  const tokens = refTokens(text);
+  const messages = refMessages(tokens);
 
   const options = {
     kind: gen.kind,
@@ -92,40 +114,35 @@ export function InputPanel({
     seed: parseNumber(gen.seed),
   };
   const genResult = GENERATE_SCHEMA.safeParse(options);
-  const genMessages = (field: keyof GenerateOptions) =>
-    genResult.success
-      ? []
-      : [
-          ...new Set(
-            genResult.error.issues
-              .filter((i) => i.path[0] === field)
-              .map((i) => i.message),
-          ),
-        ];
+  const genMessages = (field: Exclude<keyof GenerateOptions, 'kind'>) =>
+    !genResult.success && genResult.error.issues.some((i) => i.path[0] === field)
+      ? [generatorMessage(field)]
+      : [];
 
   return (
     <>
-      <Panel title="Reference string">
+      <div className="flex flex-col gap-3">
         <TextField
           label={`Pages referenced (0–${LIMITS.maxPage}, up to ${LIMITS.maxRefs})`}
           value={text}
           multiline
-          hint={`${parsed.refString.length} references. Separate with commas or spaces.`}
+          hint={`${tokens.length} ${tokens.length === 1 ? 'reference' : 'references'}. Separate with commas or spaces.`}
           messages={messages}
           onChange={(next) => {
             setText(next);
-            const candidate = { ...input, refString: parseRefString(next) };
-            if (validateReplInput(candidate).ok) onChange(candidate);
+            const refString = validRefString(refTokens(next));
+            if (refString) onChange({ ...input, refString });
           }}
         />
+        <RefChips tokens={tokens} />
         <SelectField
           label="Frames"
           value={String(input.frames)}
           options={FRAME_OPTIONS}
           onChange={(frames) => onChange({ ...input, frames: Number(frames) })}
         />
-      </Panel>
-      <Panel title="Generate a workload">
+      </div>
+      <Disclosure summary="More options: generate a string">
         <SelectField<WorkloadKind>
           label="Workload"
           value={gen.kind}
@@ -177,7 +194,7 @@ export function InputPanel({
           <Wand2 aria-hidden="true" className="size-4" />
           Generate
         </Button>
-      </Panel>
+      </Disclosure>
     </>
   );
 }

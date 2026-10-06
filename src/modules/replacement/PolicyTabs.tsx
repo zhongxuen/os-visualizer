@@ -107,6 +107,13 @@ export function PolicyTabs({
           <span className="font-semibold">{POLICY_NAMES[policy]}:</span>{' '}
           {POLICY_BLURBS[policy]}
         </p>
+        {policy === 'opt' ? (
+          <p className="text-small border-accent border-l-4 pl-3" data-testid="opt-note">
+            OPT has to know the future, so no real system can run it. It is the yardstick:
+            on this string, no policy can fault less. The label under each frame says how
+            soon its page is needed again.
+          </p>
+        ) : null}
         {children}
       </div>
     </div>

@@ -1,3 +1,10 @@
+'use client';
+
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+
+import { DURATION } from '@/components/motion/tokens';
+import { useReducedMotionSafe } from '@/components/timeline/useReducedMotionSafe';
+
 import { ChartTableToggle } from './ChartTableToggle';
 
 /**
@@ -5,7 +12,23 @@ import { ChartTableToggle } from './ChartTableToggle';
  * policy. Each series has its own colour, dash pattern and marker shape, and its name is
  * written at the end of its line, so no line is told apart by colour alone. The table
  * view has the same numbers.
+ *
+ * Optional extras (U3.4, docs/UIUX.md §7.2.4), off by default:
+ *
+ * - `marks`: a ring round one point of a series, with a label beside it (the point where
+ *   Belady's anomaly happens). The label is also added to the chart's description.
+ * - `drawIn`: the lines draw left to right once, the first time the chart scrolls into
+ *   view. A chart already on screen when the page loads, reduced motion, and a browser
+ *   without `IntersectionObserver` all get the finished chart straight away.
  */
+
+export interface LineMark {
+  /** The series the point belongs to. */
+  seriesId: string;
+  /** Index into `x`. */
+  index: number;
+  label: string;
+}
 
 export interface LineSeries {
   id: string;
@@ -21,6 +44,10 @@ export interface MiniLineChartProps {
   x: readonly number[];
   series: readonly LineSeries[];
   className?: string;
+  /** Points to ring and label. */
+  marks?: readonly LineMark[];
+  /** Draw the lines in once, on first view. */
+  drawIn?: boolean;
 }
 
 const STYLES = [
@@ -99,6 +126,39 @@ export function linePath(
   return d.trim();
 }
 
+type DrawPhase = 'done' | 'waiting' | 'drawing';
+
+/** Waits off screen, then draws once on first view (see `drawIn`). */
+function useDrawIn(enabled: boolean) {
+  const { reduced } = useReducedMotionSafe();
+  const ref = useRef<SVGSVGElement>(null);
+  const [phase, setPhase] = useState<DrawPhase>('done');
+  const started = useRef(false);
+  useEffect(() => {
+    const svg = ref.current;
+    if (!enabled || reduced || started.current || !svg) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+    started.current = true;
+    const box = svg.getBoundingClientRect();
+    // Already on screen: show it finished, rather than hide and redraw what was read.
+    if (box.top < window.innerHeight && box.bottom > 0) return;
+    let live = true;
+    // Hide the lines while the chart is off screen, then draw them once it shows.
+    queueMicrotask(() => live && setPhase('waiting'));
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      observer.disconnect();
+      setPhase('drawing');
+    });
+    observer.observe(svg);
+    return () => {
+      live = false;
+      observer.disconnect();
+    };
+  }, [enabled, reduced]);
+  return { ref, phase: reduced ? 'done' : phase };
+}
+
 /**
  * Label positions at least `gap` apart, each as close to its wanted `y` as that allows:
  * lines that end on the same value would otherwise print their names on top of each
@@ -125,7 +185,11 @@ export function MiniLineChart({
   x,
   series,
   className,
+  marks = [],
+  drawIn = false,
 }: MiniLineChartProps) {
+  const { ref: drawRef, phase: drawPhase } = useDrawIn(drawIn);
+  const clipId = `${useId().replace(/[^\w-]/g, '')}-draw`;
   const all = series.flatMap((s) => s.values.filter((v): v is number => v !== null));
   const yMax = Math.max(1, ...all);
   const plotW = W - M.left - M.right;
@@ -148,7 +212,17 @@ export function MiniLineChart({
       (s) =>
         `${s.label}: ${s.values.map((v, i) => `${x[i]} → ${v ?? 'n/a'}`).join(', ')}`,
     )
-    .join('; ')}.`;
+    .join('; ')}.${marks.map((m) => ` ${m.label}.`).join('')}`;
+  const plotClip = drawPhase === 'done' ? undefined : `url(#${clipId})`;
+  const drawStyle: CSSProperties = {
+    transformBox: 'fill-box',
+    transformOrigin: 'left',
+    transform: drawPhase === 'drawing' ? 'scaleX(1)' : 'scaleX(0)',
+    transition:
+      drawPhase === 'drawing'
+        ? `transform ${DURATION.enter * 2}ms var(--ease-inout)`
+        : 'none',
+  };
 
   const chart = (
     <svg
@@ -156,7 +230,22 @@ export function MiniLineChart({
       aria-label={summary}
       viewBox={`0 0 ${W} ${H}`}
       className="h-auto w-full max-w-md"
+      ref={drawRef}
     >
+      {drawPhase === 'done' ? null : (
+        <defs>
+          <clipPath id={clipId}>
+            <rect
+              x={0}
+              y={0}
+              width={W}
+              height={H}
+              style={drawStyle}
+              data-draw-in={drawPhase}
+            />
+          </clipPath>
+        </defs>
+      )}
       <line
         x1={M.left}
         x2={M.left}
@@ -219,7 +308,7 @@ export function MiniLineChart({
         const style = seriesStyle(index);
         const lastIndex = ends[index]!;
         return (
-          <g key={s.id} data-series={s.id}>
+          <g key={s.id} data-series={s.id} clipPath={plotClip}>
             <path
               d={linePath(s.values, px, py)}
               fill="none"
@@ -259,6 +348,35 @@ export function MiniLineChart({
                 </text>
               </g>
             ) : null}
+          </g>
+        );
+      })}
+      {marks.map((mark) => {
+        const s = series.find((one) => one.id === mark.seriesId);
+        const v = s?.values[mark.index];
+        if (v === null || v === undefined) return null;
+        const cx = px(mark.index);
+        const cy = py(v);
+        return (
+          <g key={`${mark.seriesId}-${mark.index}`} data-mark={mark.seriesId}>
+            <circle
+              cx={cx}
+              cy={cy}
+              r={8}
+              fill="none"
+              stroke="var(--state-warn)"
+              strokeWidth={2}
+            />
+            <text
+              x={cx}
+              y={Math.max(M.top + 8, cy - 13)}
+              textAnchor="middle"
+              fontSize={10}
+              fontWeight={600}
+              fill="var(--text-primary)"
+            >
+              {mark.label}
+            </text>
           </g>
         );
       })}

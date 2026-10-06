@@ -7,7 +7,8 @@ import { anomaliesOf, curveSeries } from './adapters';
 /**
  * Faults against frame count, 1 to 8 frames, one line per policy, with a table view
  * (MiniLineChart's toggle). Every point where one frame more gives more faults is listed
- * underneath as Belady's anomaly, in words, so it is not left to the eye.
+ * underneath as Belady's anomaly, in words, so it is not left to the eye, and ringed on
+ * the chart. The lines draw in once, the first time the chart scrolls into view.
  */
 
 export interface CurvePanelProps {
@@ -26,6 +27,12 @@ export function CurvePanel({ curves, frames }: CurvePanelProps) {
         yLabel="Faults"
         x={CURVE_FRAMES}
         series={curveSeries(curves)}
+        marks={anomalies.map((a) => ({
+          seriesId: a.policy,
+          index: CURVE_FRAMES.indexOf(a.frames),
+          label: `${POLICY_NAMES[a.policy]}: ${a.previous} → ${a.faults}`,
+        }))}
+        drawIn
       />
       <p className="text-small">
         With {frames} {frames === 1 ? 'frame' : 'frames'}:{' '}
