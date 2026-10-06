@@ -1,11 +1,16 @@
 'use client';
 
 import { MatrixTable } from '@/components/blocks/MatrixTable';
+import { Term } from '@/components/glossary/Term';
+import { Flash } from '@/components/motion/Flash';
 import type { DlResult, DlSnapshot } from '@/core/deadlock/events';
 import { processName, resourceName } from '@/core/deadlock/model';
 import { cn } from '@/lib/cn';
 
 import { isBad, processLabels, resourceLabels, resultText } from './adapters';
+import { CompareStrip } from './CompareStrip';
+import { ThreadChip } from './ThreadChip';
+import { WorkBar } from './WorkBar';
 
 /**
  * The parts of a step both tabs show: Work and Finish, the result banner, and the wait-for
@@ -15,83 +20,135 @@ import { isBad, processLabels, resourceLabels, resultText } from './adapters';
 export function ResultBanner({ result, id }: { result: DlResult | null; id?: string }) {
   if (!result) return null;
   const bad = isBad(result);
+  const stuck =
+    result.kind === 'unsafe'
+      ? result.stuck
+      : result.kind === 'deadlocked'
+        ? result.set
+        : [];
+  const order =
+    result.kind === 'safe' || result.kind === 'not-deadlocked' ? result.order : [];
   return (
-    <p
-      data-testid={id ?? 'dl-result'}
+    <div
       className={cn(
-        'text-small rounded-md border-2 px-3 py-2 font-semibold',
-        bad ? 'border-state-error text-state-error' : 'border-state-ok text-state-ok',
+        'flex flex-col gap-2 rounded-md border-2 px-3 py-2',
+        bad ? 'border-state-error' : 'border-state-ok',
       )}
     >
-      {resultText(result)}
-    </p>
+      <p
+        data-testid={id ?? 'dl-result'}
+        className={cn(
+          'text-small font-semibold',
+          bad ? 'text-state-error' : 'text-state-ok',
+        )}
+      >
+        {resultText(result)}
+      </p>
+      {order.length > 0 ? (
+        <div className="flex flex-col gap-1">
+          <ol aria-label="Order found" className="flex flex-wrap items-center gap-1.5">
+            {order.map((t) => (
+              <li key={t}>
+                <ThreadChip t={t} />
+              </li>
+            ))}
+          </ol>
+          <p className="text-caption text-fg-secondary" data-testid="order-note">
+            {result.kind === 'safe'
+              ? 'One safe order (there may be others).'
+              : 'One order they can finish in (there may be others).'}
+          </p>
+        </div>
+      ) : null}
+      {stuck.length > 0 ? (
+        <ul aria-label="Threads that cannot finish" className="flex flex-wrap gap-2">
+          {stuck.map((t) => (
+            <li key={t}>
+              <ThreadChip t={t} state="stuck" />
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 
-/** Work, Finish and the order so far, as a table. */
-export function WorkFinish({ state }: { state: DlSnapshot }) {
+/**
+ * Work as a bar that grows as threads finish (D2), Finish as one chip per thread, and the
+ * order so far, each new thread flashing in as it finishes.
+ */
+export function WorkFinish({
+  state,
+  released,
+}: {
+  state: DlSnapshot;
+  /** What the thread that finished on this step gave back. */
+  released?: { t: number; values: readonly number[] } | null;
+}) {
   if (!state.work || !state.finish) return null;
-  const threads = processLabels(state.finish.length);
-  const resources = resourceLabels(state.work.length);
   return (
-    <div className="flex flex-wrap gap-6">
-      <table className="text-small border-collapse text-center">
-        <caption className="mb-1 text-left font-semibold">Work</caption>
-        <thead>
-          <tr>
-            {resources.map((label) => (
-              <th key={label} scope="col" className="text-fg-muted px-2 py-1 font-mono">
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          <tr className="border-border border-t" data-testid="work">
-            {state.work.map((value, r) => (
-              <td key={r} className="px-2 py-1 font-mono">
-                {value}
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
-      <table className="text-small border-collapse text-center">
-        <caption className="mb-1 text-left font-semibold">Finish</caption>
-        <thead>
-          <tr>
-            {threads.map((label) => (
-              <th key={label} scope="col" className="text-fg-muted px-2 py-1 font-mono">
-                {label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          <tr className="border-border border-t" data-testid="finish">
-            {state.finish.map((done, t) => (
-              <td
-                key={t}
-                className={cn(
-                  'px-2 py-1 font-mono',
-                  done ? 'text-state-ok' : 'text-fg-muted',
-                  state.row === t && 'outline-accent outline-2 -outline-offset-2',
-                )}
-              >
-                {done ? 'true' : 'false'}
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
-      <p className="text-small self-end">
-        Finished so far:{' '}
-        <span className="font-mono" data-testid="order">
+    <div className="flex flex-col gap-4">
+      <WorkBar
+        label="Work"
+        values={state.work}
+        total={state.total}
+        released={released ?? null}
+        description={
+          <>
+            = <Term id="available">Available</Term>, plus what every finished thread gave
+            back.
+          </>
+        }
+      />
+      <div className="flex flex-col gap-1">
+        <p className="text-small font-semibold">Finish</p>
+        <ul
+          aria-label="Finish"
+          data-testid="finish"
+          className="flex flex-wrap gap-x-3 gap-y-1"
+        >
+          {state.finish.map((done, t) => (
+            <li
+              key={t}
+              data-finished={done}
+              className={cn(
+                'rounded-md',
+                state.row === t && 'outline-accent outline-2 outline-offset-2',
+              )}
+            >
+              <ThreadChip t={t} state={done ? 'done' : undefined} />
+              {done ? null : <span className="sr-only"> not finished</span>}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div className="text-small flex flex-wrap items-center gap-2">
+        <span>Finished so far:</span>
+        <span className="sr-only" data-testid="order">
           {state.order.length === 0
             ? 'none'
             : `⟨${state.order.map(processName).join(', ')}⟩`}
         </span>
-      </p>
+        {state.order.length === 0 ? (
+          <span aria-hidden="true" className="text-fg-muted">
+            none
+          </span>
+        ) : (
+          <ol aria-hidden="true" className="flex flex-wrap gap-1.5">
+            {state.order.map((t, i) => (
+              <li key={t}>
+                <Flash
+                  trigger={`${t}-${i}`}
+                  active={released != null && i === state.order.length - 1}
+                  tone="ok"
+                >
+                  <ThreadChip t={t} />
+                </Flash>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
     </div>
   );
 }
@@ -167,32 +224,57 @@ export function WaitForView({ state }: { state: DlSnapshot }) {
   );
 }
 
-/** Allocation and Request with Available or Work under them: the detection algorithm. */
+/** Row labels with a tick on every thread that has finished (§7.2.5). */
+export function rowLabelsWithFinish(state: DlSnapshot): string[] {
+  return processLabels(state.allocation.length).map((label, t) =>
+    state.finish?.[t] ? `${label} ✓` : label,
+  );
+}
+
+/**
+ * Allocation and Request with Available or Work under them: the detection algorithm.
+ * Only the row being compared is at full strength (D2); the comparison itself is spelled
+ * out column by column under the matrices.
+ */
 export function DetectionMatrices({ state }: { state: DlSnapshot }) {
-  const threads = processLabels(state.allocation.length);
+  const threads = rowLabelsWithFinish(state);
   const resources = resourceLabels(state.total.length);
   const compare = state.compare;
   const changed = state.changed.map(([row, col]) => ({ row, col }));
+  const row = state.row !== null ? { highlightRow: state.row } : {};
   return (
-    <div className="flex flex-wrap gap-6">
-      <MatrixTable
-        caption="Allocation"
-        rowLabels={threads}
-        columnLabels={resources}
-        values={state.allocation}
-        vector={{ label: 'Available', values: state.available }}
-        changed={changed}
-        {...(state.row !== null ? { highlightRow: state.row } : {})}
-      />
-      {state.request ? (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-6">
         <MatrixTable
-          caption="Request"
+          caption="Allocation"
           rowLabels={threads}
           columnLabels={resources}
-          values={state.request}
-          {...(state.work ? { vector: { label: 'Work', values: state.work } } : {})}
-          {...(state.row !== null ? { highlightRow: state.row } : {})}
-          compare={compare?.matrix === 'request'}
+          values={state.allocation}
+          vector={{ label: 'Available', values: state.available }}
+          changed={changed}
+          dimOthers
+          {...row}
+        />
+        {state.request ? (
+          <MatrixTable
+            caption="Request"
+            rowLabels={threads}
+            columnLabels={resources}
+            values={state.request}
+            {...(state.work ? { vector: { label: 'Work', values: state.work } } : {})}
+            {...row}
+            dimOthers
+            compare={compare?.matrix === 'request'}
+          />
+        ) : null}
+      </div>
+      {compare && compare.matrix === 'request' && state.work ? (
+        <CompareStrip
+          left={`Request[${processName(compare.row)}]`}
+          leftValues={compare.values}
+          right="Work"
+          rightValues={state.work}
+          trigger={`${compare.row}-${state.order.length}`}
         />
       ) : null}
     </div>

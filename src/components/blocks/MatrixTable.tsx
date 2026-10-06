@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { cn } from '@/lib/cn';
 
@@ -45,6 +45,17 @@ export interface MatrixTableProps {
   onChange?: (row: number, col: number, value: number) => void;
   min?: number;
   max?: number;
+  /**
+   * Optional. Show every row but `highlightRow` in muted text (still AA contrast), so
+   * the row being compared is the one at full strength. Off by default.
+   */
+  dimOthers?: boolean;
+  /**
+   * Optional. Editable only: the message shown under a cell, and announced, while what
+   * is typed there is not a whole number in range ("Enter a whole number from 0 to 9").
+   * Without it, an invalid cell is marked by its border and `aria-invalid` alone.
+   */
+  invalidMessage?: string;
   className?: string;
 }
 
@@ -70,17 +81,21 @@ function CellInput({
   min,
   max,
   onCommit,
+  invalidMessage,
 }: {
   value: number;
   label: string;
   min: number;
   max: number;
   onCommit: (value: number) => void;
+  invalidMessage?: string;
 }) {
   // What is typed, until it parses; `null` shows the committed value.
   const [draft, setDraft] = useState<string | null>(null);
   const invalid = draft !== null && parseCell(draft, min, max) === null;
-  return (
+  const messageId = useId();
+  const showMessage = invalid && invalidMessage !== undefined;
+  const input = (
     <input
       type="number"
       inputMode="numeric"
@@ -89,6 +104,7 @@ function CellInput({
       step={1}
       aria-label={label}
       aria-invalid={invalid || undefined}
+      aria-describedby={showMessage ? messageId : undefined}
       value={draft ?? String(value)}
       onChange={(event) => {
         const text = event.target.value;
@@ -107,6 +123,21 @@ function CellInput({
       )}
     />
   );
+  if (invalidMessage === undefined) return input;
+  return (
+    <>
+      {input}
+      {showMessage ? (
+        <span
+          id={messageId}
+          role="alert"
+          className="text-caption text-state-error mt-0.5 block max-w-24 text-left font-sans"
+        >
+          {invalidMessage}
+        </span>
+      ) : null}
+    </>
+  );
 }
 
 export function MatrixTable({
@@ -122,6 +153,8 @@ export function MatrixTable({
   onChange,
   min = 0,
   max = 99,
+  dimOthers = false,
+  invalidMessage,
   className,
 }: MatrixTableProps) {
   const comparing =
@@ -153,6 +186,7 @@ export function MatrixTable({
                 data-active={active || undefined}
                 className={cn(
                   'border-border border-t',
+                  dimOthers && highlightRow !== undefined && !active && 'text-fg-muted',
                   active &&
                     'bg-surface-overlay outline-accent outline-2 -outline-offset-2',
                 )}
@@ -181,6 +215,7 @@ export function MatrixTable({
                           min={min}
                           max={max}
                           onCommit={(next) => onChange(r, c, next)}
+                          {...(invalidMessage !== undefined ? { invalidMessage } : {})}
                         />
                       ) : (
                         value

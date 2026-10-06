@@ -4,8 +4,10 @@ import { Play } from 'lucide-react';
 import { useState } from 'react';
 
 import { MatrixTable } from '@/components/blocks/MatrixTable';
+import { Term } from '@/components/glossary/Term';
+import { Flash } from '@/components/motion/Flash';
 import { Button } from '@/components/timeline/ui/Button';
-import type { DlSnapshot } from '@/core/deadlock/events';
+import type { DlEventKind, DlSnapshot } from '@/core/deadlock/events';
 import {
   LIMITS,
   needOf,
@@ -15,15 +17,20 @@ import {
   type BankersState,
 } from '@/core/deadlock/model';
 import type { BankersQuery } from '@/core/deadlock/presets';
+import { cn } from '@/lib/cn';
 
-import { processLabels, resourceLabels } from './adapters';
+import { processLabels, releasedAt, resourceLabels, type RequestCheck } from './adapters';
+import { CompareStrip } from './CompareStrip';
 import { Messages, Panel, parseNumber, SelectField, TextField } from './fields';
-import { ResultBanner, WorkFinish } from './StepState';
+import { ResultBanner, rowLabelsWithFinish, WorkFinish } from './StepState';
 
 /**
  * The Banker's tab: an editor for Max, Allocation and Available (Need is computed, never
  * edited), the request form, and the step view of the safety or request algorithm.
  */
+
+/** G11: one human message for a matrix cell that is not a number in range. */
+const CELL_MESSAGE = `Enter a whole number from 0 to ${LIMITS.maxBankerValue}.`;
 
 const THREAD_COUNTS = Array.from({ length: LIMITS.maxProcesses }, (_, i) => ({
   value: String(i + 1),
@@ -75,8 +82,14 @@ export function BankersEditor({ state, onChange }: BankersEditorProps) {
           onChange={(m) => update(resizeBankers(draft, draft.max.length, Number(m)))}
         />
       </div>
-      <div className="flex flex-wrap gap-6">
+      <p className="text-caption text-fg-muted">
+        Max and Allocation are yours to edit. <Term id="need" /> is computed from them,
+        never typed.
+      </p>
+      <div className="flex flex-col gap-4">
         <MatrixTable
+          className="overflow-x-auto"
+          invalidMessage={CELL_MESSAGE}
           caption="Max"
           rowLabels={threads}
           columnLabels={resources}
@@ -88,6 +101,8 @@ export function BankersEditor({ state, onChange }: BankersEditorProps) {
           }
         />
         <MatrixTable
+          className="overflow-x-auto"
+          invalidMessage={CELL_MESSAGE}
           caption="Allocation"
           rowLabels={threads}
           columnLabels={resources}
@@ -99,6 +114,8 @@ export function BankersEditor({ state, onChange }: BankersEditorProps) {
           }
         />
         <MatrixTable
+          className="overflow-x-auto"
+          invalidMessage={CELL_MESSAGE}
           caption="Available"
           rowLabels={['Free']}
           columnLabels={resources}
@@ -113,12 +130,21 @@ export function BankersEditor({ state, onChange }: BankersEditorProps) {
           }
         />
         {result.ok ? (
-          <MatrixTable
-            caption="Need = Max − Allocation"
-            rowLabels={threads}
-            columnLabels={resources}
-            values={needOf(draft)}
-          />
+          <div
+            data-derived=""
+            className="border-border bg-surface-overlay flex flex-col gap-1 rounded-md border p-2"
+          >
+            <p className="text-caption text-fg-secondary font-semibold">
+              Computed, not edited
+            </p>
+            <MatrixTable
+              className="overflow-x-auto"
+              caption="Need = Max − Allocation"
+              rowLabels={threads}
+              columnLabels={resources}
+              values={needOf(draft)}
+            />
+          </div>
         ) : null}
       </div>
       <div aria-live="polite">
@@ -187,7 +213,7 @@ export function BankersQueryForm({ state, query, onRun }: BankersQueryFormProps)
                 value={cells[r]!}
                 messages={
                   Number.isNaN(parsed[r]!) || parsed[r]! > LIMITS.maxBankerValue
-                    ? [`0 to ${LIMITS.maxBankerValue}`]
+                    ? [CELL_MESSAGE]
                     : []
                 }
                 onChange={(text) =>
@@ -209,9 +235,81 @@ export function BankersQueryForm({ state, query, onRun }: BankersQueryFormProps)
   );
 }
 
-/** The step view: Allocation, Need and Max with Available or Work, Finish, the result. */
-export function BankersStep({ state }: { state: DlSnapshot }) {
-  const threads = processLabels(state.allocation.length);
+const CHECK_WORDS: Record<RequestCheck['status'], string> = {
+  pending: 'not reached yet',
+  current: 'in progress',
+  pass: 'passed',
+  fail: 'failed',
+};
+
+/** The request algorithm as a checklist that ticks (§7.2.5). */
+export function RequestChecklist({ checks }: { checks: readonly RequestCheck[] }) {
+  return (
+    <ol
+      aria-label="Request checks"
+      className="flex flex-col gap-1"
+      data-testid="request-checks"
+    >
+      {checks.map((check, i) => (
+        <li
+          key={check.id}
+          data-check={check.id}
+          data-status={check.status}
+          className={cn(
+            'text-small flex items-center gap-2',
+            check.status === 'pending' && 'text-fg-muted',
+          )}
+        >
+          <Flash
+            trigger={check.status}
+            active={check.changed}
+            tone={check.status === 'fail' ? 'danger' : 'ok'}
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                'inline-flex size-5 items-center justify-center rounded-full border font-mono text-xs',
+                check.status === 'pass' && 'border-state-ok text-state-ok',
+                check.status === 'fail' && 'border-state-error text-state-error',
+                check.status === 'current' && 'border-accent text-accent',
+                check.status === 'pending' && 'border-border',
+              )}
+            >
+              {check.status === 'pass' ? '✓' : check.status === 'fail' ? '✗' : i + 1}
+            </span>
+          </Flash>
+          <span>{check.label}</span>
+          <span className="sr-only">: {CHECK_WORDS[check.status]}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export interface BankersStepProps {
+  state: DlSnapshot;
+  /** The step's event kind, so a finish shows what the thread gave back. */
+  kind?: DlEventKind;
+  /** A request run: its checklist so far. */
+  checks?: readonly RequestCheck[] | null;
+  /** A request run between "pretend" and the decision: the matrices are ghosted. */
+  pretending?: boolean;
+}
+
+/**
+ * The step view: the request checklist, the comparison column by column, Allocation,
+ * Need (= Max − Allocation) and Max with Available or Work, Work as a bar, Finish and
+ * the result. Only the row being compared is at full strength (D2). Between "pretend
+ * to allocate" and the decision the matrices are ghosted (dashed), and a roll-back says
+ * so (§7.2.5).
+ */
+export function BankersStep({
+  state,
+  kind,
+  checks,
+  pretending = false,
+}: BankersStepProps) {
+  const threads = rowLabelsWithFinish(state);
   const resources = resourceLabels(state.total.length);
   const compare = state.compare;
   const changed = state.changed.map(([row, col]) => ({ row, col }));
@@ -221,52 +319,102 @@ export function BankersStep({ state }: { state: DlSnapshot }) {
     compare?.against === 'need'
       ? { label: `Need[${processName(compare.row)}]`, values: state.need![compare.row]! }
       : { label: 'Available', values: state.available };
+  const row = state.row !== null ? { highlightRow: state.row } : {};
+  const workCompare =
+    compare && compare.matrix === 'need' && compare.against === 'work' && state.work
+      ? { compare, work: state.work }
+      : null;
 
   return (
     <div className="flex flex-col gap-4">
+      {checks ? <RequestChecklist checks={checks} /> : null}
       {requestCheck ? (
-        <MatrixTable
-          caption="Request"
-          rowLabels={[processName(compare.row)]}
-          columnLabels={resources}
-          values={[compare.values]}
-          vector={against}
-          highlightRow={0}
-          compare
+        <>
+          <MatrixTable
+            caption="Request"
+            rowLabels={[processName(compare.row)]}
+            columnLabels={resources}
+            values={[compare.values]}
+            vector={against}
+            highlightRow={0}
+            compare
+          />
+          <CompareStrip
+            left={`Request[${processName(compare.row)}]`}
+            leftValues={compare.values}
+            right={against.label}
+            rightValues={against.values}
+            trigger={compare.against}
+          />
+        </>
+      ) : null}
+      <div
+        data-pretend={pretending || undefined}
+        className={cn(
+          'flex flex-col gap-3',
+          pretending && 'border-border-strong rounded-lg border-2 border-dashed p-3',
+        )}
+      >
+        {pretending ? (
+          <p className="text-small text-fg-secondary font-semibold">
+            Pretend state, not granted yet: nothing here is final until the safety check
+            passes.
+          </p>
+        ) : null}
+        {kind === 'dl.req.rollback' ? (
+          <p
+            className="text-small text-fg-secondary font-semibold"
+            data-testid="rolled-back"
+          >
+            Rolled back: the matrices are as they were before the request.
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-6">
+          <MatrixTable
+            caption="Allocation"
+            rowLabels={threads}
+            columnLabels={resources}
+            values={state.allocation}
+            vector={{ label: 'Available', values: state.available }}
+            changed={changed}
+            dimOthers
+            {...row}
+          />
+          {state.need ? (
+            <MatrixTable
+              caption="Need = Max − Allocation"
+              rowLabels={threads}
+              columnLabels={resources}
+              values={state.need}
+              {...(state.work ? { vector: { label: 'Work', values: state.work } } : {})}
+              {...row}
+              dimOthers
+              compare={workCompare !== null}
+              changed={changed}
+            />
+          ) : null}
+          {state.max ? (
+            <MatrixTable
+              caption="Max"
+              rowLabels={threads}
+              columnLabels={resources}
+              values={state.max}
+              dimOthers
+              {...row}
+            />
+          ) : null}
+        </div>
+      </div>
+      {workCompare ? (
+        <CompareStrip
+          left={`Need[${processName(workCompare.compare.row)}]`}
+          leftValues={workCompare.compare.values}
+          right="Work"
+          rightValues={workCompare.work}
+          trigger={`${workCompare.compare.row}-${state.order.length}`}
         />
       ) : null}
-      <div className="flex flex-wrap gap-6">
-        <MatrixTable
-          caption="Allocation"
-          rowLabels={threads}
-          columnLabels={resources}
-          values={state.allocation}
-          vector={{ label: 'Available', values: state.available }}
-          changed={changed}
-          {...(state.row !== null ? { highlightRow: state.row } : {})}
-        />
-        {state.need ? (
-          <MatrixTable
-            caption="Need"
-            rowLabels={threads}
-            columnLabels={resources}
-            values={state.need}
-            {...(state.work ? { vector: { label: 'Work', values: state.work } } : {})}
-            {...(state.row !== null ? { highlightRow: state.row } : {})}
-            compare={compare?.matrix === 'need' && compare.against === 'work'}
-            changed={changed}
-          />
-        ) : null}
-        {state.max ? (
-          <MatrixTable
-            caption="Max"
-            rowLabels={threads}
-            columnLabels={resources}
-            values={state.max}
-          />
-        ) : null}
-      </div>
-      <WorkFinish state={state} />
+      <WorkFinish state={state} released={releasedAt(state, kind)} />
       <ResultBanner result={state.result} />
     </div>
   );
