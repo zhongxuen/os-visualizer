@@ -63,6 +63,41 @@ describe('QueueView', () => {
   });
 });
 
+describe('QueueView, optional extras (U3.1)', () => {
+  const props = {
+    running: { pid: 2, remaining: 3, extra: <span>ring</span> },
+    queues: [{ id: 'q0', label: 'Q0', items: [{ pid: 1 }, { pid: 3 }] }],
+    done: [{ pid: 4 }],
+  };
+
+  it('keeps the order and the head when animated, rings the highlight, lists the done', async () => {
+    const onPidHover = vi.fn();
+    const user = userEvent.setup();
+    const { container } = render(
+      <QueueView {...props} animate highlightPid={3} onPidHover={onPidHover} />,
+    );
+    const q0 = screen.getByRole('list', { name: 'Q0' });
+    expect(
+      within(q0)
+        .getAllByRole('listitem')
+        .map((i) => i.textContent),
+    ).toEqual(['P1(next)', 'P3']);
+    expect(screen.getByTestId('queue-running')).toHaveTextContent('P23 leftring');
+    expect(screen.getByRole('list', { name: 'Done' })).toContainElement(
+      screen.getByRole('img', { name: 'finished' }),
+    );
+    expect(container.querySelector('[data-pid="3"][data-highlight]')).not.toBeNull();
+    await user.hover(container.querySelector('[data-pid="1"]')!);
+    expect(onPidHover).toHaveBeenLastCalledWith(1);
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows an empty done tray without animation too', () => {
+    render(<QueueView running={null} queues={[]} done={[]} />);
+    expect(screen.getByText('None yet')).toBeInTheDocument();
+  });
+});
+
 describe('BitField', () => {
   const fields = [
     { id: 'pd', name: 'PD index', bits: 10 },
@@ -266,6 +301,43 @@ describe('MetricsTable', () => {
     expect(rows[2]).toHaveTextContent('Throughput0.3best0.3best');
     expect(rows[3]).toHaveTextContent('Average2.651.65');
     expect(container.querySelectorAll('[data-best]')).toHaveLength(3);
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe('MetricsTable, optional extras (U3.1)', () => {
+  it('renders rich headers, highlights a row, and reports hover and focus', async () => {
+    const onRowHover = vi.fn();
+    const user = userEvent.setup();
+    const { container } = render(
+      <MetricsTable
+        caption="Per process"
+        columns={[
+          { id: 'w', label: 'Waiting', header: <span>Waiting, lower is better</span> },
+        ]}
+        rows={[
+          { id: 'P1', label: 'P1', values: [3] },
+          { id: 'P2', label: 'P2', values: [null] },
+        ]}
+        highlightRow="P2"
+        onRowHover={onRowHover}
+        animate
+      />,
+    );
+    expect(
+      screen.getByRole('columnheader', { name: 'Waiting, lower is better' }),
+    ).toBeInTheDocument();
+    const [, p1, p2] = screen.getAllByRole('row');
+    expect(p2).toHaveAttribute('data-highlight');
+    expect(p1).not.toHaveAttribute('data-highlight');
+    await user.hover(p1!);
+    expect(onRowHover).toHaveBeenLastCalledWith('P1');
+    await user.unhover(p1!);
+    expect(onRowHover).toHaveBeenLastCalledWith(null);
+    await user.tab();
+    expect(p1).toHaveFocus();
+    expect(onRowHover).toHaveBeenLastCalledWith('P1');
+    expect(p1).toHaveAccessibleName('P1 3');
     await expectNoAxeViolations(container);
   });
 });

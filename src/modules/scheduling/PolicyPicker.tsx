@@ -1,11 +1,12 @@
 'use client';
 
-import { useId } from 'react';
+import { Fragment, useId } from 'react';
 
 import { LIMITS, type Policy, type PolicyKind } from '@/core/sched/workload';
 import { cn } from '@/lib/cn';
 
-import { CheckboxField, NumberField, SelectField } from './fields';
+import { CheckboxField, MoreOptions, NumberField, SelectField } from './fields';
+import { HUMAN } from './messages';
 
 /**
  * Pick a policy and its parameters: the quantum for RR, preemption and aging for
@@ -52,11 +53,23 @@ export interface PolicyPickerProps {
   /** Prefix for labels when several pickers share a page ("Column 2"). */
   label?: string;
   className?: string;
+  /**
+   * Fold the advanced settings (aging; MLFQ's boost and rule 4) under "More options"
+   * (G10). Off by default, so Compare's columns are unchanged.
+   */
+  disclose?: boolean;
 }
 
-export function PolicyPicker({ policy, onChange, label, className }: PolicyPickerProps) {
+export function PolicyPicker({
+  policy,
+  onChange,
+  label,
+  className,
+  disclose = false,
+}: PolicyPickerProps) {
   const prefix = label ? `${label} ` : '';
   const name = useId();
+  const Advanced = disclose ? MoreOptions : Fragment;
 
   return (
     <div className={cn('flex flex-col gap-3', className)}>
@@ -73,6 +86,7 @@ export function PolicyPicker({ policy, onChange, label, className }: PolicyPicke
           value={policy.quantum}
           min={LIMITS.minQuantum}
           max={LIMITS.maxQuantum}
+          error={HUMAN.quantum}
           onChange={(quantum) => onChange({ ...policy, quantum })}
         />
       ) : null}
@@ -84,36 +98,38 @@ export function PolicyPicker({ policy, onChange, label, className }: PolicyPicke
             checked={policy.preemptive}
             onChange={(preemptive) => onChange({ ...policy, preemptive })}
           />
-          <CheckboxField
-            label={`${prefix}Aging`}
-            checked={policy.aging !== undefined}
-            onChange={(on) => {
-              if (on) onChange({ ...policy, aging: { every: 2, by: 1 } });
-              else onChange({ kind: 'priority', preemptive: policy.preemptive });
-            }}
-          />
-          {policy.aging ? (
-            <div className="flex flex-wrap gap-3">
-              <NumberField
-                label={`${prefix}Every (ticks waited)`}
-                value={policy.aging.every}
-                min={1}
-                max={LIMITS.maxAgingEvery}
-                onChange={(every) =>
-                  onChange({ ...policy, aging: { ...policy.aging!, every } })
-                }
-              />
-              <NumberField
-                label={`${prefix}Lower by`}
-                value={policy.aging.by}
-                min={1}
-                max={LIMITS.maxAgingBy}
-                onChange={(by) =>
-                  onChange({ ...policy, aging: { ...policy.aging!, by } })
-                }
-              />
-            </div>
-          ) : null}
+          <Advanced>
+            <CheckboxField
+              label={`${prefix}Aging`}
+              checked={policy.aging !== undefined}
+              onChange={(on) => {
+                if (on) onChange({ ...policy, aging: { every: 2, by: 1 } });
+                else onChange({ kind: 'priority', preemptive: policy.preemptive });
+              }}
+            />
+            {policy.aging ? (
+              <div className="flex flex-wrap gap-3">
+                <NumberField
+                  label={`${prefix}Every (ticks waited)`}
+                  value={policy.aging.every}
+                  min={1}
+                  max={LIMITS.maxAgingEvery}
+                  onChange={(every) =>
+                    onChange({ ...policy, aging: { ...policy.aging!, every } })
+                  }
+                />
+                <NumberField
+                  label={`${prefix}Lower by`}
+                  value={policy.aging.by}
+                  min={1}
+                  max={LIMITS.maxAgingBy}
+                  onChange={(by) =>
+                    onChange({ ...policy, aging: { ...policy.aging!, by } })
+                  }
+                />
+              </div>
+            ) : null}
+          </Advanced>
         </div>
       ) : null}
 
@@ -172,6 +188,7 @@ export function PolicyPicker({ policy, onChange, label, className }: PolicyPicke
                         value={level.quantum}
                         min={LIMITS.minQuantum}
                         max={LIMITS.maxQuantum}
+                        error={HUMAN.quantum}
                         onChange={(quantum) => set({ quantum })}
                       />
                     </td>
@@ -190,46 +207,49 @@ export function PolicyPicker({ policy, onChange, label, className }: PolicyPicke
               })}
             </tbody>
           </table>
-          <CheckboxField
-            label={`${prefix}Priority boost`}
-            checked={policy.boostEvery !== undefined}
-            onChange={(on) => {
-              if (on) onChange({ ...policy, boostEvery: 20 });
-              else onChange({ kind: 'mlfq', levels: policy.levels, rule4: policy.rule4 });
-            }}
-          />
-          {policy.boostEvery !== undefined ? (
-            <NumberField
-              label={`${prefix}Boost every (ticks)`}
-              value={policy.boostEvery}
-              min={1}
-              max={LIMITS.maxBoostEvery}
-              onChange={(boostEvery) => onChange({ ...policy, boostEvery })}
+          <Advanced>
+            <CheckboxField
+              label={`${prefix}Priority boost`}
+              checked={policy.boostEvery !== undefined}
+              onChange={(on) => {
+                if (on) onChange({ ...policy, boostEvery: 20 });
+                else
+                  onChange({ kind: 'mlfq', levels: policy.levels, rule4: policy.rule4 });
+              }}
             />
-          ) : null}
-          <fieldset className="flex flex-col gap-1">
-            <legend className="text-caption text-fg-muted">
-              {prefix}Rule 4 (demotion)
-            </legend>
-            {(
-              [
-                ['allotment', 'Allotment: time used at a level counts across I/O'],
-                ['original', 'Old rules 4a/4b: only a whole quantum demotes'],
-              ] as const
-            ).map(([value, text]) => (
-              <label key={value} className="text-small inline-flex items-start gap-2">
-                <input
-                  type="radio"
-                  name={name}
-                  value={value}
-                  checked={policy.rule4 === value}
-                  onChange={() => onChange({ ...policy, rule4: value })}
-                  className="accent-accent mt-0.5 size-4"
-                />
-                {text}
-              </label>
-            ))}
-          </fieldset>
+            {policy.boostEvery !== undefined ? (
+              <NumberField
+                label={`${prefix}Boost every (ticks)`}
+                value={policy.boostEvery}
+                min={1}
+                max={LIMITS.maxBoostEvery}
+                onChange={(boostEvery) => onChange({ ...policy, boostEvery })}
+              />
+            ) : null}
+            <fieldset className="flex flex-col gap-1">
+              <legend className="text-caption text-fg-muted">
+                {prefix}Rule 4 (demotion)
+              </legend>
+              {(
+                [
+                  ['allotment', 'Allotment: time used at a level counts across I/O'],
+                  ['original', 'Old rules 4a/4b: only a whole quantum demotes'],
+                ] as const
+              ).map(([value, text]) => (
+                <label key={value} className="text-small inline-flex items-start gap-2">
+                  <input
+                    type="radio"
+                    name={name}
+                    value={value}
+                    checked={policy.rule4 === value}
+                    onChange={() => onChange({ ...policy, rule4: value })}
+                    className="accent-accent mt-0.5 size-4"
+                  />
+                  {text}
+                </label>
+              ))}
+            </fieldset>
+          </Advanced>
         </div>
       ) : null}
     </div>

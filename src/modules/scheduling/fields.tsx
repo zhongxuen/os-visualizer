@@ -22,6 +22,8 @@ export function NumberField({
   onChange,
   hideLabel = false,
   className,
+  error,
+  inputClassName,
 }: {
   label: string;
   value: number;
@@ -30,8 +32,12 @@ export function NumberField({
   onChange: (value: number) => void;
   hideLabel?: boolean;
   className?: string;
+  /** The message for an out-of-range value, in plain words (G11). */
+  error?: string;
+  inputClassName?: string;
 }) {
   const id = useId();
+  const errorId = `${id}-error`;
   const [draft, setDraft] = useState<string | null>(null);
   const text = draft ?? String(value);
   const parsed = Number(text);
@@ -56,6 +62,7 @@ export function NumberField({
         step={1}
         value={text}
         aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? errorId : undefined}
         onChange={(event) => {
           const next = event.target.value;
           const n = Number(next);
@@ -67,13 +74,16 @@ export function NumberField({
           }
         }}
         onBlur={() => setDraft(null)}
-        className={cn(INPUT, 'w-16', invalid && 'border-state-error border-2')}
+        className={cn(
+          INPUT,
+          'w-16',
+          invalid && 'border-state-error border-2',
+          inputClassName,
+        )}
       />
-      {invalid ? (
-        <span className="text-caption text-state-error">
-          {min} to {max}
-        </span>
-      ) : null}
+      <span id={errorId} aria-live="polite" className="text-caption text-state-error">
+        {invalid ? (error ?? `${min} to ${max}`) : null}
+      </span>
     </span>
   );
 }
@@ -159,5 +169,15 @@ export function Panel({
       </h2>
       {children}
     </section>
+  );
+}
+
+/** "More options" (G10): advanced settings, folded away until asked for. */
+export function MoreOptions({ children }: { children: ReactNode }) {
+  return (
+    <details className="border-border rounded-md border px-3 py-2">
+      <summary className="text-small cursor-pointer font-medium">More options</summary>
+      <div className="mt-3 flex flex-col gap-3">{children}</div>
+    </details>
   );
 }

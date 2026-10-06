@@ -1,5 +1,7 @@
 import { Star } from 'lucide-react';
+import type { ReactNode } from 'react';
 
+import { Flash } from '@/components/motion/Flash';
 import { cn } from '@/lib/cn';
 
 /**
@@ -13,11 +15,18 @@ import { cn } from '@/lib/cn';
  *
  * Ties: every column that equals the best value is marked. A row with no numbers marks
  * nothing.
+ *
+ * Optional (U3.1), off unless passed: a column `header` (rich content in place of the
+ * plain label: a direction, a definition popover); `highlightRow` / `onRowHover` for
+ * linked highlighting, which also makes each body row focusable so the keyboard can do
+ * what hovering does; and `animate`, which pulses changed values once with `Flash`.
  */
 
 export interface MetricsColumn {
   id: string;
   label: string;
+  /** Shown in the header in place of `label` (e.g. the label plus "lower is better"). */
+  header?: ReactNode;
 }
 
 export interface MetricsRow {
@@ -39,6 +48,15 @@ export interface MetricsTableProps {
   averageBetter?: 'lower' | 'higher';
   format?: (value: number) => string;
   className?: string;
+  /** The row to highlight (linked highlighting). */
+  highlightRow?: string | null;
+  /**
+   * The body row under the pointer or with focus, or `null` when it leaves. Passing it
+   * makes each body row focusable.
+   */
+  onRowHover?: (id: string | null) => void;
+  /** Pulse a changed value once (`Flash`) on a forward step. */
+  animate?: boolean;
 }
 
 /** Up to two decimals, no trailing zeros. */
@@ -76,14 +94,40 @@ function Row({
   row,
   format,
   emphasis,
+  highlighted,
+  onHover,
+  animate,
 }: {
   row: MetricsRow;
   format: (value: number) => string;
   emphasis?: boolean;
+  highlighted?: boolean;
+  onHover?: (id: string | null) => void;
+  animate?: boolean;
 }) {
   const best = row.better ? bestColumns(row.values, row.better) : [];
+  const hover = onHover
+    ? {
+        tabIndex: 0,
+        onMouseEnter: () => onHover(row.id),
+        onMouseLeave: () => onHover(null),
+        onFocus: () => onHover(row.id),
+        onBlur: () => onHover(null),
+      }
+    : {};
   return (
-    <tr className={cn('border-border border-t', emphasis && 'border-t-2 font-semibold')}>
+    <tr
+      {...hover}
+      data-row={row.id}
+      data-highlight={highlighted ? '' : undefined}
+      className={cn(
+        'border-border border-t',
+        emphasis && 'border-t-2 font-semibold',
+        onHover &&
+          'focus-visible:outline-focus cursor-default focus-visible:outline-2 focus-visible:-outline-offset-2',
+        highlighted && 'bg-surface-overlay shadow-[inset_3px_0_0_var(--accent)]',
+      )}
+    >
       <th scope="row" className="px-2 py-1 text-left font-medium">
         {row.label}
       </th>
@@ -91,7 +135,13 @@ function Row({
         const isBest = best.includes(c);
         return (
           <td key={c} data-best={isBest || undefined} className="px-2 py-1 font-mono">
-            {value === null ? <span className="text-fg-muted">—</span> : format(value)}
+            {value === null ? (
+              <span className="text-fg-muted">—</span>
+            ) : animate ? (
+              <Flash trigger={`${row.id}:${c}:${value}`}>{format(value)}</Flash>
+            ) : (
+              format(value)
+            )}
             {isBest ? (
               <span className="text-state-ok text-caption ml-1 inline-flex items-center gap-0.5 font-sans font-semibold">
                 <Star aria-hidden="true" className="size-3" />
@@ -113,6 +163,9 @@ export function MetricsTable({
   averageBetter,
   format = formatMetric,
   className,
+  highlightRow = null,
+  onRowHover,
+  animate = false,
 }: MetricsTableProps) {
   const means = average ? columnMeans(rows, columns.length) : null;
   return (
@@ -127,14 +180,21 @@ export function MetricsTable({
               scope="col"
               className="text-fg-muted px-2 py-1 font-medium"
             >
-              {column.label}
+              {column.header ?? column.label}
             </th>
           ))}
         </tr>
       </thead>
       <tbody>
         {rows.map((row) => (
-          <Row key={row.id} row={row} format={format} />
+          <Row
+            key={row.id}
+            row={row}
+            format={format}
+            highlighted={highlightRow !== null && row.id === highlightRow}
+            onHover={onRowHover}
+            animate={animate}
+          />
         ))}
       </tbody>
       {means && average ? (
