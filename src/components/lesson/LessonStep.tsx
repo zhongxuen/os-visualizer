@@ -1,9 +1,16 @@
 'use client';
 
-import { useId, type ReactNode } from 'react';
+import { createContext, useContext, useId, type ReactNode } from 'react';
 
 import { Button } from '../timeline/ui/Button';
 import { useLesson } from './LessonContext';
+
+/** The example the part on screen uses, so `<TryIt>` inside it needs no `example`. */
+const PartContext = createContext<{ example?: string }>({});
+
+export function usePartExample(): string | undefined {
+  return useContext(PartContext).example;
+}
 
 /**
  * One part of a walkthrough: a heading, about 150 words, and the example it uses. Only
@@ -28,13 +35,19 @@ export function LessonStep({
   if (lesson.part !== n) return null;
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-3">
-      <h3 id={headingId} className="text-fg text-body font-semibold">
-        {title}
-      </h3>
-      {example ? <ExampleBar id={example} /> : null}
-      {children}
-    </section>
+    <PartContext value={{ example }}>
+      <section aria-labelledby={headingId} className="flex flex-col gap-4">
+        <h3 id={headingId} className="text-fg text-lead font-semibold">
+          <span className="text-caption text-fg-muted block font-medium tracking-wide uppercase">
+            Part {n}
+            <span className="sr-only">: </span>
+          </span>
+          {title}
+        </h3>
+        {example ? <ExampleBar id={example} /> : null}
+        {children}
+      </section>
+    </PartContext>
   );
 }
 
@@ -45,7 +58,10 @@ export function ExampleBar({ id }: { id: string }) {
   const loaded = lesson.activeExample === id;
 
   return (
-    <div className="border-border flex flex-wrap items-center gap-2 rounded-md border border-dashed px-3 py-2">
+    <div
+      className="border-border bg-surface flex flex-wrap items-center gap-2 rounded-md border border-dashed px-3 py-2"
+      data-example={id}
+    >
       <p className="text-small min-w-0 flex-1">
         <span className="text-fg-muted">Example: </span>
         <span className="text-fg font-medium">{example.title}</span>

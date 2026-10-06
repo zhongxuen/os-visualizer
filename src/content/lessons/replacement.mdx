@@ -1,10 +1,10 @@
 <LessonStep n={1} title="FIFO: the oldest page goes" example="ostep-fifo">
 
-When a process references a page that is not in memory, the result is a **page fault**. If every frame is full, the operating system must choose a page to evict. The **replacement policy** makes that choice, and a good one keeps the pages that will be used again soon.
+When a process references a page that is not in memory, the result is a **<Term id="page-fault">page fault</Term>**. If every <Term id="frame">frame</Term> is full, the operating system must choose a page to evict. The **replacement policy** makes that choice, and a good one keeps the pages that will be used again soon.
 
 FIFO (first in, first out) evicts the page that was loaded earliest. It needs no information about use at all, only the order of loads.
 
-This is OSTEP's reference string, 0, 1, 2, 0, 1, 3, 0, 3, 1, 2, 1, with room for three pages. The first three references are cold misses that fill the empty frames, and the next two are hits. Then page 3 arrives and something has to go.
+This is OSTEP's <Term id="reference-string">reference string</Term>, 0, 1, 2, 0, 1, 3, 0, 3, 1, 2, 1, with room for three pages. The first three references are <Term id="cold-fault">cold misses</Term> that fill the empty frames, and the next two are hits. Then page 3 arrives and something has to go: the <Term id="victim">victim</Term>.
 
 <Checkpoint id="fifo-evict" />
 
@@ -28,15 +28,17 @@ LRU (least recently used) evicts the page that has gone unused for the longest t
 
 On OSTEP's string LRU hits as often as OPT: six times out of eleven. Step through and watch the last-use column of the LRU state panel. Every hit refreshes a page's last use, so pages in active use stay.
 
-LRU has a blind spot. A loop over one more page than there are frames makes it evict exactly the page needed next, and every reference faults. The looping workload preset in Free play shows it.
+LRU has a blind spot. A loop over one more page than there are frames makes it evict exactly the page needed next, and every reference faults. The looping workload preset in Sandbox shows it.
 
 <Checkpoint id="lru-hit" />
+
+<TryIt at="end">jump to the end and compare LRU's hits with OPT's.</TryIt>
 
 </LessonStep>
 
 <LessonStep n={4} title="Clock: a cheap approximation of LRU" example="clock-clock">
 
-Exact LRU must record the time of every memory reference, which is too costly in hardware. **Clock**, also called second chance, gets close with one **use bit** per frame. The hardware sets the bit whenever the page is used. On a fault, a hand sweeps the frames in a circle: a page with use bit 1 has the bit cleared and is passed over; the first page with use bit 0 is evicted.
+Exact LRU must record the time of every memory reference, which is too costly in hardware. **Clock**, also called second chance, gets close with one **<Term id="use-bit">use bit</Term>** per frame. The hardware sets the bit whenever the page is used. On a fault, a hand sweeps the frames in a circle: a page with use bit 1 has the bit cleared and is passed over; the first page with use bit 0 is evicted.
 
 This is OSC10's 20-reference string with three frames. Step through a fault and watch the hand move, clearing use bits as it goes, until it finds a 0.
 
@@ -46,9 +48,13 @@ This is OSC10's 20-reference string with three frames. Step through a fault and 
 
 <LessonStep n={5} title="Belady's anomaly" example="belady-fifo">
 
-Surely more memory never means more faults? For FIFO it can. On the string 1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5, FIFO faults 9 times with three frames and 10 times with four. This is **Belady's anomaly**. The Belady panel runs both sizes on one cursor, so you can find the reference where the two runs part ways.
+Surely more memory never means more faults? For FIFO it can. On the string 1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5, FIFO faults 9 times with three frames and 10 times with four. This is **<Term id="beladys-anomaly">Belady's anomaly</Term>**. The Belady panel runs both sizes on one cursor, so you can find the reference where the two runs part ways.
 
 LRU and OPT are **stack algorithms**: the pages held with n frames are always a subset of those held with n + 1, so adding a frame can never add a fault. The faults-against-frames chart plots every policy, and only FIFO's line can rise.
+
+<TryIt at="end">
+  jump to the end and read the fault counts for three and four frames.
+</TryIt>
 
 <RealSystems sources={[
   { title: 'Linux kernel documentation: Multi-Gen LRU', url: 'https://docs.kernel.org/admin-guide/mm/multigen_lru.html' },

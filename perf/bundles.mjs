@@ -25,6 +25,7 @@ const BUDGETS = {
   '/index': PAGE_BUDGET,
   '/about': PAGE_BUDGET,
   '/learn': PAGE_BUDGET,
+  '/learn/glossary': PAGE_BUDGET,
   '/_not-found': PAGE_BUDGET,
   '/_global-error': PAGE_BUDGET,
   '/scheduling': MODULE_BUDGET,

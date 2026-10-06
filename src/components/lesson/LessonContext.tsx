@@ -26,11 +26,17 @@ export interface LessonContextValue {
   /** Start holding the timeline at checkpoints (loading an example does this too). */
   engage(): void;
   checkpoints: readonly CheckpointSpec[];
-  /** The option chosen for each answered checkpoint. */
+  /** The option chosen for each checkpoint answered in this visit. */
   answers: Readonly<Record<string, string>>;
   answer(id: string, value: string): void;
+  /** Answered in this visit or an earlier one (kept in `osv:v1`). */
+  isDone(id: string): boolean;
   /** A checkpoint on screen tells the walkthrough, so only those hold the timeline. */
   mount(id: string): () => void;
+  /** The checkpoint the timeline is being held for, if any. */
+  pending: string | null;
+  /** Scroll the module's picture into view (see `reveal.ts`). */
+  reveal(): void;
 }
 
 export const LessonContext = createContext<LessonContextValue | null>(null);

@@ -2,7 +2,10 @@ export { Checkpoint } from './Checkpoint';
 export { LessonContext, useLesson, type LessonContextValue } from './LessonContext';
 export { canonicalJson, matchExample } from './examples';
 export { LESSON_COMPONENTS } from './lessonComponents';
-export { ExampleBar, LessonStep } from './LessonStep';
+export { ExampleBar, LessonStep, usePartExample } from './LessonStep';
+export { checkpointKey, checkpointsDone } from './progress';
+export { findVisual, revealVisual } from './reveal';
+export { TryIt, tryItLabel, type TryItTarget } from './TryIt';
 export { RealSystems, type RealSource } from './RealSystems';
 export type {
   CheckpointOption,
