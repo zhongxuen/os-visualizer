@@ -8,14 +8,12 @@ import { Term } from '@/components/glossary/Term';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
 import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { ruleUsed, StepInspector } from '@/components/inspector/StepInspector';
-import { Walkthrough } from '@/components/lesson/Walkthrough';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
 import { useShareState } from '@/components/state/useShareState';
 import { PhaseStepper } from '@/components/timeline/PhaseStepper';
 import { PlaybackBar } from '@/components/timeline/PlaybackBar';
 import { StepCaption } from '@/components/timeline/StepCaption';
 import { Button } from '@/components/timeline/ui/Button';
-import DeadlockLesson from '@/content/lessons/deadlock.mdx';
 import { createRegistry } from '@/core/citations/registry';
 import { allocate, runRequest, runSafety } from '@/core/deadlock/bankers';
 import { deadlockCitations } from '@/core/deadlock/citations';
@@ -65,6 +63,11 @@ import { PANEL_ID, tabId, ViewTabs } from './ViewTabs';
 const CITATIONS = createRegistry([deadlockCitations]);
 
 // React Flow is only ever loaded here, after the page is interactive.
+/** Guided mode's lesson: client-only, its own chunk, out of first-load JS. */
+const GuidedLesson = dynamic(() => import('./GuidedLesson'), {
+  ssr: false,
+  loading: () => <p className="text-fg-muted text-small">Loading the lesson…</p>,
+});
 const GraphCanvas = dynamic(() => import('./GraphCanvas'), {
   ssr: false,
   loading: () => (
@@ -562,9 +565,8 @@ export function DeadlockView() {
             {VIEW_INTROS[view]}
           </p>
           {mode === 'walkthrough' ? (
-            <Walkthrough
+            <GuidedLesson
               lesson={LESSON}
-              Content={DeadlockLesson}
               store={store}
               unit="step"
               examples={LESSON_EXAMPLES}
