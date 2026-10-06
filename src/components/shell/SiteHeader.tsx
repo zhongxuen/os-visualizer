@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { SITE_NAME } from '@/lib/site';
 
 import { KeyboardHelp, MobileMenu, ModulesMenu, NavLink } from './SiteHeaderMenus';
+import { ShortcutsSheet } from './ShortcutsSheet';
 import { ThemeToggle } from './ThemeToggle';
 
 /**
@@ -49,6 +50,8 @@ export function SiteHeader() {
           <MobileMenu />
         </div>
       </div>
+      {/* Outside the `hidden` wrappers: a dialog under `display: none` never shows. */}
+      <ShortcutsSheet />
     </header>
   );
 }

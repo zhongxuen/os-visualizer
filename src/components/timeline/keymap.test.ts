@@ -3,12 +3,33 @@ import { describe, expect, it } from 'vitest';
 import { PLAYBACK_SPEEDS } from '@/core/sim/playback';
 
 import {
+  chordId,
+  findShortcutCollisions,
   isTypingTarget,
   matchPlaybackKey,
+  matchWorkspaceKey,
   PLAYBACK_SHORTCUTS,
   shouldIgnoreKey,
+  WORKSPACE_SHORTCUTS,
+  type ModuleShortcut,
   type PlaybackCommand,
 } from './keymap';
+
+declare global {
+  interface ImportMeta {
+    glob<T>(pattern: string, options: { eager: true }): Record<string, T>;
+  }
+}
+
+/**
+ * Every module's own keys. A module that binds keys exports `MODULE_SHORTCUTS` from
+ * `src/modules/<name>/shortcuts.ts` (see src/components/README.md); the glob picks each
+ * one up without this shared test importing a module (boundary rule 4).
+ */
+const MODULE_KEYMAPS = import.meta.glob<{ MODULE_SHORTCUTS?: readonly ModuleShortcut[] }>(
+  '../../modules/*/shortcuts.ts',
+  { eager: true },
+);
 
 function element(html: string): Element {
   const host = document.createElement('div');
@@ -161,5 +182,56 @@ describe('the printed legend', () => {
       'step-phase',
     );
     expect(PLAYBACK_SHORTCUTS).toHaveLength(6);
+  });
+});
+
+describe('key uniqueness (B6)', () => {
+  it('normalises chords: letters ignore case, Shift is kept, caps read as keys', () => {
+    expect(chordId(['F'])).toBe('f');
+    expect(chordId(['f'])).toBe('f');
+    expect(chordId(['Shift', '→'])).toBe('shift+arrowright');
+    expect(chordId(['→'])).toBe('arrowright');
+    expect(chordId(['Space'])).toBe(' ');
+  });
+
+  it('finds a collision, and names both owners', () => {
+    const clash = findShortcutCollisions(PLAYBACK_SHORTCUTS, [
+      { chords: [['1'], ['2']], action: 'Run thread 1 or 2' },
+    ]);
+    expect(clash).toEqual([
+      '1: Speed 0.25x, 0.5x, 1x, 2x, 4x | Run thread 1 or 2',
+      '2: Speed 0.25x, 0.5x, 1x, 2x, 4x | Run thread 1 or 2',
+    ]);
+  });
+
+  it('gives every playback and workspace key exactly one meaning', () => {
+    expect(findShortcutCollisions(PLAYBACK_SHORTCUTS, WORKSPACE_SHORTCUTS)).toEqual([]);
+  });
+
+  it('gives every module key one meaning on its page, beside playback and workspace', () => {
+    for (const [file, keymap] of Object.entries(MODULE_KEYMAPS)) {
+      const own = keymap.MODULE_SHORTCUTS ?? [];
+      expect(
+        findShortcutCollisions(PLAYBACK_SHORTCUTS, WORKSPACE_SHORTCUTS, own),
+        file,
+      ).toEqual([]);
+    }
+  });
+
+  it('maps the workspace keys, and never a modified chord', () => {
+    expect(matchWorkspaceKey({ key: 'f' })).toEqual({ type: 'focus-mode' });
+    expect(matchWorkspaceKey({ key: 'F', shiftKey: true })).toEqual({
+      type: 'focus-mode',
+    });
+    expect(matchWorkspaceKey({ key: '?', shiftKey: true })).toEqual({
+      type: 'shortcuts',
+    });
+    expect(matchWorkspaceKey({ key: 'f', ctrlKey: true })).toBeNull();
+    expect(matchWorkspaceKey({ key: 'g' })).toBeNull();
+    for (const shortcut of WORKSPACE_SHORTCUTS) {
+      for (const chord of shortcut.chords) {
+        expect(matchWorkspaceKey({ key: chord.at(-1)! })).not.toBeNull();
+      }
+    }
   });
 });

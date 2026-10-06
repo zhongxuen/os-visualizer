@@ -15,6 +15,7 @@ import {
 import type { ReactNode } from 'react';
 
 import { usePauseAtSteps, usePreference } from '@/components/shell/prefs';
+import { requestShortcuts } from '@/components/shell/ShortcutsSheet';
 import type { RunUnit } from '@/core/events/builder';
 import { PLAYBACK_SPEEDS, type PlaybackStatus } from '@/core/sim/playback';
 import { cn } from '@/lib/cn';
@@ -45,9 +46,10 @@ import { Switch } from './ui/Switch';
  *   again". The visible label is always inside the accessible name (WCAG 2.5.3).
  * - **The middle** is the view's: the timeline, passed as `children`.
  * - **Speed**, in a menu. Its options keep the plain "4x" names the browser suites press.
- * - **Pause after each phase** and **Shortcuts** beside it at `lg`. Below `lg` they, and
- *   "Replay this phase", go into one "More" menu, because a 390px bar has room for three
- *   labelled buttons and not for eight.
+ * - **Pause after each phase** and **Shortcuts** beside it at `lg`; Shortcuts opens the
+ *   site's one `ShortcutsSheet`. Below `lg` they, and "Replay this phase", go into one
+ *   "More" menu (with the legend inline), and below `sm` the speeds do too, because a
+ *   390px bar has room for three labelled buttons and the scrubber, not for eight.
  *
  * "Replay this phase" is `Repeat1` and "Play again" is `RotateCcw`: one replays a part
  * and the other the whole.
@@ -129,7 +131,9 @@ function SpeedMenu({
       align="end"
       label="Playback speed"
       triggerVariant="ghost"
-      triggerClassName="gap-1 px-2.5 font-mono"
+      // On a phone the bar keeps Back, Play, Next and the scrubber; speed moves into
+      // "More" (docs/UIUX.md §4.2).
+      triggerClassName="gap-1 px-2.5 font-mono max-sm:hidden"
       triggerProps={{ 'aria-label': `Speed ${speed}x`, title: 'Speed (1 to 5)' }}
       trigger={
         <>
@@ -256,6 +260,28 @@ export function PlaybackControls({
           trigger={<Ellipsis aria-hidden="true" className="size-5" />}
         >
           <div className="flex w-72 max-w-full flex-col gap-2">
+            <div
+              role="group"
+              aria-label="Playback speed"
+              className="flex flex-wrap gap-1 sm:hidden"
+            >
+              {PLAYBACK_SPEEDS.map((option, index) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onCommand({ type: 'speed', speed: option })}
+                  aria-pressed={option === speed}
+                  title={`Speed ${option}x (${index + 1})`}
+                  className={buttonClasses({
+                    variant: option === speed ? 'primary' : 'ghost',
+                    size: 'sm',
+                    className: 'font-mono',
+                  })}
+                >
+                  {option}x
+                </button>
+              ))}
+            </div>
             <ReplayStepButton onCommand={onCommand} withLabel />
             <PauseAtStepsSwitch className="w-full" />
             {showLegend ? (
@@ -270,17 +296,18 @@ export function PlaybackControls({
       <div className="hidden items-center gap-1 lg:flex">
         <PauseAtStepsSwitch />
         {showLegend ? (
-          <Popover
-            side="top"
-            align="end"
-            label="Keyboard shortcuts"
-            triggerVariant="ghost"
-            triggerClassName="size-target px-0"
-            triggerProps={{ 'aria-label': 'Keyboard shortcuts' }}
-            trigger={<Keyboard aria-hidden="true" className="size-5" />}
+          // The one shortcuts sheet (G6), which also lists the workspace's and the
+          // module's keys.
+          <button
+            type="button"
+            aria-label="Keyboard shortcuts"
+            aria-haspopup="dialog"
+            title="Keyboard shortcuts (?)"
+            onClick={requestShortcuts}
+            className={buttonClasses({ variant: 'ghost', className: 'size-target px-0' })}
           >
-            <KeyboardLegend />
-          </Popover>
+            <Keyboard aria-hidden="true" className="size-5" />
+          </button>
         ) : null}
       </div>
     </div>

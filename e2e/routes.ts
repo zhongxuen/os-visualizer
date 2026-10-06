@@ -4,8 +4,8 @@ import { MODULES } from '../src/modules/registry';
 
 /**
  * Every URL the product serves, derived from the registry, so a module flipped to
- * `ready` is scanned the same day. Module routes have two modes (Walkthrough and Free
- * play); the rest have one.
+ * `ready` is scanned the same day. Module routes have two modes (Guided and Sandbox); the
+ * rest have one.
  */
 
 export interface Route {
@@ -42,9 +42,9 @@ export async function useTheme(page: Page, theme: Theme): Promise<void> {
   }, theme);
 }
 
-/** Switch a module page to Free play, retrying until React has hydrated. */
+/** Switch a module page to Sandbox, retrying until React has hydrated. */
 export async function freePlay(page: Page): Promise<void> {
-  const radio = page.getByRole('radio', { name: 'Free play' });
+  const radio = page.getByRole('radio', { name: 'Sandbox' });
   for (let i = 0; i < 20; i += 1) {
     await radio.check({ force: true });
     if (await radio.isChecked()) {
@@ -53,5 +53,5 @@ export async function freePlay(page: Page): Promise<void> {
     }
     await page.waitForTimeout(100);
   }
-  throw new Error('Free play did not take effect');
+  throw new Error('Sandbox did not take effect');
 }

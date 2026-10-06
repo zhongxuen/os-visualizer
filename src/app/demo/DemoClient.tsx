@@ -4,8 +4,12 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
 import { RulesPanel } from '@/components/inspector/RulesPanel';
-import { StepInspector } from '@/components/inspector/StepInspector';
-import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
+import { ruleUsed, StepInspector } from '@/components/inspector/StepInspector';
+import {
+  MODE_LABELS,
+  ModuleLayout,
+  type ModuleMode,
+} from '@/components/shell/ModuleLayout';
 import { ProcessChip } from '@/components/shell/ProcessChip';
 import { PROCESS_PALETTE, processPatternId } from '@/components/shell/processPalette';
 import { ProcessPatternDefs } from '@/components/shell/ProcessPatternDefs';
@@ -25,6 +29,11 @@ import { cn } from '@/lib/cn';
 import { BlocksDemo } from './BlocksDemo';
 import { DEMO_RULES } from './fakeBlocks';
 import { buildFakeRun, DEMO_PROCESSES } from './fakeRun';
+
+/** Shows how a module lists its own keys in the shortcuts sheet (no key is bound). */
+const DEMO_SHORTCUTS = [
+  { chords: [['U']], action: 'Demo only: a module key, listed here' },
+];
 
 function UnitPicker({
   unit,
@@ -208,22 +217,68 @@ export function DemoClient() {
 
   const progress = useProgress();
 
+  // The step a rule decided: every dispatch (a new process taking the CPU) is FCFS order.
+  const dispatch =
+    current !== undefined &&
+    current.pid !== null &&
+    run.events[Math.min(index, count - 1) - 1]?.pid !== current.pid;
+  const ruleId = dispatch ? 'demo.fcfs.order' : null;
+  const finished = new Set(
+    run.events
+      .slice(0, reached + 1)
+      .flatMap((e) => (e.label.includes('finishes') ? [e.pid] : [])),
+  ).size;
+
   return (
     <CitationsProvider citations={citations}>
       <ModuleLayout
         title="Component demo"
         intro="The shell and the timeline, driven by a fake run. Everything here works from the keyboard."
+        moduleId="demo"
         mode={mode}
         onModeChange={setMode}
+        share={{ link: share.link, shareable: share.shareable }}
+        shortcuts={DEMO_SHORTCUTS}
         inputs={<UnitPicker unit={unit} onChange={setUnit} />}
+        results={
+          <section
+            aria-labelledby="demo-results-heading"
+            className="border-border bg-surface-raised flex flex-col gap-2 rounded-lg border p-4"
+          >
+            <h2 id="demo-results-heading" className="text-lead font-semibold">
+              Results so far
+            </h2>
+            <p className="text-small">
+              <span className="font-mono" data-testid="demo-finished">
+                {finished}
+              </span>{' '}
+              of {DEMO_PROCESSES.length} processes finished.
+            </p>
+          </section>
+        }
+        endOfRun={{
+          result: `FCFS ran ${DEMO_PROCESSES.length} processes in arrival order over ${count} ${unit}s.`,
+          tryNext: {
+            label:
+              unit === 'tick'
+                ? 'The same run, read in steps'
+                : 'The same run, read in ticks',
+            why: 'Same events, other unit: the timecode changes, the story does not.',
+            onSelect: () => setUnit(unit === 'tick' ? 'step' : 'tick'),
+          },
+        }}
         inspector={
           <div className="flex flex-col gap-4">
-            <StepInspector heading={`This ${unit}`} event={current}>
+            <StepInspector
+              heading={`This ${unit}`}
+              event={current}
+              rule={ruleUsed(DEMO_RULES, ruleId)}
+            >
               <p className="text-fg-muted text-caption font-mono">
                 {formatTimecode(index * UNIT_MS[unit], run.durationMs, unit)}
               </p>
             </StepInspector>
-            <RulesPanel rules={DEMO_RULES} />
+            <RulesPanel rules={DEMO_RULES} currentRuleId={ruleId} />
             <ProgressCard
               done={progress.isComplete('demo')}
               saved={progress.savedFor('demo').length}
@@ -245,8 +300,10 @@ export function DemoClient() {
         timeline={<PlaybackBar store={store} phases={run.phases} unit={unit} />}
       >
         <p className="text-fg-muted text-small mb-3">
-          Mode: {mode === 'walkthrough' ? 'Walkthrough' : 'Free play'} (the switch is
-          wired; modules decide what it changes).
+          Mode: {MODE_LABELS[mode]} (the switch is wired; modules decide what it changes).
+          Resize the window to see the workspace at its three sizes: three columns from
+          1024 px, a Setup drawer from 640 px, and Setup / Watch / Results tabs below
+          that.
         </p>
         <StepCaption
           phases={run.phases}

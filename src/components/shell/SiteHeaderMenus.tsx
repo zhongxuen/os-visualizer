@@ -3,13 +3,13 @@
 import { Keyboard, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
-import { KeyboardLegend } from '@/components/timeline/KeyboardLegend';
 import { Pill, Popover, Sheet, focusRing } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { MODULES, type ModuleEntry } from '@/modules/registry';
 
+import { requestShortcuts, useShortcutsOpen } from './ShortcutsSheet';
 import { ThemeToggle } from './ThemeToggle';
 
 /**
@@ -17,16 +17,8 @@ import { ThemeToggle } from './ThemeToggle';
  * phone menu sheet. `SiteHeader` itself stays a Server Component.
  */
 
-/**
- * The "show keyboard shortcuts" action, as a window event. The keyboard-help button
- * dispatches it, and so will the `?` key; the ShortcutsSheet (U2.1) listens for it.
- * Until that sheet exists, {@link KeyboardHelp} listens and opens the legend itself.
- */
-export const SHORTCUTS_EVENT = 'osv:shortcuts';
-
-export function requestShortcuts(): void {
-  window.dispatchEvent(new Event(SHORTCUTS_EVENT));
-}
+// The shortcuts action lives with the sheet; re-exported for existing callers.
+export { requestShortcuts, SHORTCUTS_EVENT } from './ShortcutsSheet';
 
 const navLink =
   'text-fg-secondary hover:text-fg aria-[current=page]:text-fg min-h-target-floor inline-flex items-center rounded-sm px-1 text-small font-medium aria-[current=page]:underline aria-[current=page]:decoration-accent aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-[6px]';
@@ -114,34 +106,27 @@ export function ModulesMenu() {
   );
 }
 
+/**
+ * The header's keyboard-help button. It opens the `ShortcutsSheet` (which the header
+ * mounts once) through the shared action, so the button and `?` are one path.
+ */
 export function KeyboardHelp() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const show = () => setOpen(true);
-    window.addEventListener(SHORTCUTS_EVENT, show);
-    return () => window.removeEventListener(SHORTCUTS_EVENT, show);
-  }, []);
-
+  const open = useShortcutsOpen();
   return (
-    <Popover
-      open={open}
-      // Opening goes through the shared action, so the button and `?` stay one path.
-      onOpenChange={(next) => (next ? requestShortcuts() : setOpen(false))}
-      trigger={<Keyboard aria-hidden="true" className="size-4" strokeWidth={1.75} />}
-      label="Keyboard shortcuts"
-      triggerVariant="ghost"
-      triggerClassName="size-target px-0"
-      triggerProps={{ 'aria-label': 'Keyboard shortcuts', title: 'Keyboard shortcuts' }}
-      align="end"
-      className="w-max max-w-[min(22rem,calc(100vw_-_1rem))]"
+    <button
+      type="button"
+      aria-label="Keyboard shortcuts"
+      title="Keyboard shortcuts (?)"
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      onClick={requestShortcuts}
+      className={cn(
+        'text-fg-secondary hover:bg-surface-overlay hover:text-fg size-target inline-flex items-center justify-center rounded-md',
+        focusRing,
+      )}
     >
-      <p className="text-fg mb-2 font-semibold">Keyboard shortcuts</p>
-      <p className="text-fg-muted text-caption mb-3">
-        On every module page, while focus is not in a text field.
-      </p>
-      <KeyboardLegend />
-    </Popover>
+      <Keyboard aria-hidden="true" className="size-4" strokeWidth={1.75} />
+    </button>
   );
 }
 

@@ -155,7 +155,12 @@ export function Term({ id, children }: TermProps) {
             const panel = document.getElementById(
               event.currentTarget.getAttribute('aria-controls') ?? '',
             );
-            if (!panel?.contains(event.relatedTarget as Node | null)) hide();
+            if (panel?.contains(event.relatedTarget as Node | null)) return;
+            // After the focus move has landed: closing synchronously, mid-blur, made
+            // Popover see focus on <body> and hand it back to this trigger, so Tab
+            // could never leave a term.
+            cancelClose();
+            closeTimer.current = setTimeout(hide, 0);
           },
         }}
         className="max-w-[min(22rem,calc(100vw_-_1rem))]"

@@ -8,8 +8,8 @@ import { expectNoAxeViolations } from '@/components/testing/axe';
 
 import { CitationLink, citationPlace } from './CitationLink';
 import { CitationsProvider } from './CitationsContext';
-import { RulesPanel } from './RulesPanel';
-import { StepInspector } from './StepInspector';
+import { ruleAnchorId, RulesPanel } from './RulesPanel';
+import { ruleUsed, StepInspector } from './StepInspector';
 
 const registry = createRegistry([
   [
@@ -125,5 +125,74 @@ describe('RulesPanel', () => {
   it('says when a module has no special rules', () => {
     render(<RulesPanel rules={[]} defaultOpen />);
     expect(screen.getByText('No special rules.')).toBeInTheDocument();
+  });
+});
+
+describe('the rule used on a step (G4, G5)', () => {
+  const rules = [
+    {
+      id: 'sched.tie.pid',
+      text: 'When the policy key ties, the lower PID runs first.',
+      plain: 'A tie goes to the lower process number.',
+      whyItMatters: 'A book that breaks ties by arrival can start a different process.',
+    },
+    { id: 'sched.order.arrivals', text: 'Arrivals on one tick join lowest PID first.' },
+  ];
+
+  it('renders plain, formal and why-it-matters, and the formal text alone without them', () => {
+    const { container } = render(<RulesPanel rules={rules} defaultOpen />);
+    const tie = container.querySelector('[data-rule="sched.tie.pid"]')!;
+    expect(tie).toHaveTextContent('A tie goes to the lower process number.');
+    expect(tie).toHaveTextContent('Formally: When the policy key ties');
+    expect(tie).toHaveTextContent('Why it matters: A book that breaks ties');
+    const arrivals = container.querySelector('[data-rule="sched.order.arrivals"]')!;
+    expect(arrivals).toHaveTextContent('Arrivals on one tick join lowest PID first.');
+    expect(arrivals).not.toHaveTextContent('Formally');
+  });
+
+  it('highlights the rule used on the current step and opens the panel for it', async () => {
+    const { container, rerender } = render(<RulesPanel rules={rules} />);
+    const details = container.querySelector('details')!;
+    expect(details.open).toBe(false);
+
+    rerender(<RulesPanel rules={rules} currentRuleId="sched.tie.pid" />);
+    expect(details.open).toBe(true);
+    const current = container.querySelector('[data-current]')!;
+    expect(current).toHaveAttribute('data-rule', 'sched.tie.pid');
+    expect(current).toHaveAttribute('aria-current', 'true');
+    expect(current).toHaveTextContent('Used on this step');
+    await expectNoAxeViolations(container);
+  });
+
+  it('shows a Rule used chip that goes to the rule', async () => {
+    const user = userEvent.setup();
+    render(
+      withCitations(
+        <>
+          <StepInspector
+            event={{ label: 'P1 runs.', citation: 'ostep.7' }}
+            rule={ruleUsed(rules, 'sched.tie.pid')}
+          />
+          <RulesPanel rules={rules} />
+        </>,
+      ),
+    );
+    const chip = screen.getByRole('link', {
+      name: /Rule used:\s*A tie goes to the lower/,
+    });
+    expect(chip).toHaveAttribute('href', `#${ruleAnchorId('sched.tie.pid')}`);
+    await user.click(chip);
+    expect(document.querySelector('details')!.open).toBe(true);
+    expect(document.getElementById(ruleAnchorId('sched.tie.pid'))).toHaveFocus();
+  });
+
+  it('has no chip when no rule decided the step', () => {
+    expect(ruleUsed(rules, null)).toBeNull();
+    expect(ruleUsed(rules, 'no.such.rule')).toBeNull();
+    render(
+      withCitations(<StepInspector event={{ label: 'P1 runs.', citation: 'ostep.7' }} />),
+    );
+    expect(screen.queryByText(/Rule used/)).toBeNull();
+    expect(screen.getByText('What happened')).toBeInTheDocument();
   });
 });

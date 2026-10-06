@@ -156,3 +156,74 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   if (target.getAttribute('contenteditable') === 'true') return true;
   return target instanceof HTMLElement && target.isContentEditable === true;
 }
+
+/* --- Workspace and module keys ------------------------------------------- */
+
+/**
+ * A shortcut a module adds on its own page (sync's thread keys, for instance). The same
+ * shape as a playback shortcut, so the sheet prints both the same way.
+ */
+export type ModuleShortcut = PlaybackShortcut;
+
+/** What a workspace key press means. Handled by `ModuleLayout` and the shortcuts sheet. */
+export type WorkspaceCommand = { type: 'focus-mode' } | { type: 'shortcuts' };
+
+/** The workspace's own keys (docs/UIUX.md §4.3, G6), printed after the playback map. */
+export const WORKSPACE_SHORTCUTS: readonly PlaybackShortcut[] = [
+  { chords: [['F']], action: 'Focus mode: hide or show the Setup column' },
+  { chords: [['?']], action: 'Show these shortcuts' },
+];
+
+/** The command a key press means to the workspace, or `null`. */
+export function matchWorkspaceKey(event: KeyChord): WorkspaceCommand | null {
+  if (event.ctrlKey || event.metaKey || event.altKey) return null;
+  if (event.key === '?') return { type: 'shortcuts' };
+  if (event.key === 'f' || event.key === 'F') return { type: 'focus-mode' };
+  return null;
+}
+
+/** How a printed key cap reads as a `KeyboardEvent.key`. */
+const PRINTED_AS_KEY: Record<string, string> = {
+  Space: ' ',
+  '→': 'ArrowRight',
+  '←': 'ArrowLeft',
+  '↑': 'ArrowUp',
+  '↓': 'ArrowDown',
+  Esc: 'Escape',
+};
+
+/**
+ * One chord as a canonical string, for comparing shortcuts: `'shift+arrowright'`, `'f'`,
+ * `'?'`. Letters are case-insensitive (the cap prints `F`, the key reports `f`), and a
+ * printed `Shift` is kept, so `Shift` + `→` and `→` stay different keys.
+ */
+export function chordId(chord: readonly string[]): string {
+  const modifiers = chord
+    .slice(0, -1)
+    .map((key) => key.toLowerCase())
+    .sort();
+  const printed = chord.at(-1) ?? '';
+  const key = (PRINTED_AS_KEY[printed] ?? printed).toLowerCase();
+  return [...modifiers, key].join('+');
+}
+
+/**
+ * Every chord that more than one shortcut claims, across the lists given (one page's
+ * playback, workspace and module keys). Empty when every key means one thing.
+ */
+export function findShortcutCollisions(
+  ...lists: readonly (readonly PlaybackShortcut[])[]
+): string[] {
+  const owners = new Map<string, string[]>();
+  for (const list of lists) {
+    for (const shortcut of list) {
+      for (const chord of shortcut.chords) {
+        const id = chordId(chord);
+        owners.set(id, [...(owners.get(id) ?? []), shortcut.action]);
+      }
+    }
+  }
+  return [...owners.entries()]
+    .filter(([, actions]) => actions.length > 1)
+    .map(([id, actions]) => `${id}: ${actions.join(' | ')}`);
+}

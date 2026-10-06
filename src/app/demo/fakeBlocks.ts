@@ -195,6 +195,9 @@ export const DEMO_RULES: Rule[] = [
   {
     id: 'demo.fcfs.order',
     text: 'FCFS runs processes in arrival order; a tie goes to the lower PID.',
+    plain: 'Whoever arrived first runs first, and runs until it is done.',
+    whyItMatters:
+      'With a different tie-break (say, the longer job first), two processes arriving together would swap places and every waiting time after them would change.',
   },
   {
     id: 'demo.metrics',

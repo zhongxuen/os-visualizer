@@ -5,6 +5,8 @@ import { memo, useEffect, useRef, useState } from 'react';
 import type { PhaseSummary } from '@/core/sim/result';
 import { cn } from '@/lib/cn';
 
+import { useStepFade } from './useStepFade';
+
 /**
  * Where a run stands, for the caption. `ready` is before the first play or seek; `done`
  * is the resting state at the end. From Internet Visualizer's `stage.ts`.
@@ -123,6 +125,8 @@ export const StepCaption = memo(function StepCaption({
 }: StepCaptionProps) {
   const caption = stepCaption(phases, currentIndex, moment, question);
   const spoken = useThrottled(spokenCaption(caption), moment !== 'running');
+  // A short cross-fade when the phase turns over on a forward step; instant otherwise.
+  const fadeRef = useStepFade<HTMLSpanElement>(spokenCaption(caption));
 
   return (
     <div
@@ -137,7 +141,7 @@ export const StepCaption = memo(function StepCaption({
       )}
     >
       {/* Seen, not heard: the status region below speaks the same words, throttled. */}
-      <span aria-hidden="true" className="block">
+      <span ref={fadeRef} aria-hidden="true" className="block">
         {caption.step ? (
           <span className="text-accent text-small mb-0.5 block font-semibold tracking-wide">
             {caption.step}

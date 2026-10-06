@@ -5,7 +5,7 @@ import { freePlay, ROUTES, useTheme, type Theme } from './routes';
 
 /**
  * axe-core on every route, in the light and the dark theme, and on module routes in both
- * Walkthrough and Free play. WCAG 2.1 A and AA rules; any violation fails, whatever its
+ * Guided and Sandbox. WCAG 2.1 A and AA rules; any violation fails, whatever its
  * impact, the same bar the per-module specs hold.
  *
  * Axe cannot see whether a page is usable from the keyboard: that is
@@ -58,7 +58,7 @@ for (const route of ROUTES) {
       await page.goto(route.path);
       await page.waitForLoadState('networkidle');
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-      const where = `${route.path} (${theme}${route.module ? ', walkthrough' : ''})`;
+      const where = `${route.path} (${theme}${route.module ? ', guided' : ''})`;
       await scan(page, where);
       await expectSaneHeadings(page, where);
 
@@ -74,8 +74,8 @@ for (const route of ROUTES) {
           await expectSaneHeadings(page, `${where}, part ${part}`);
         }
         await freePlay(page);
-        await scan(page, `${route.path} (${theme}, free play)`);
-        await expectSaneHeadings(page, `${route.path} (${theme}, free play)`);
+        await scan(page, `${route.path} (${theme}, sandbox)`);
+        await expectSaneHeadings(page, `${route.path} (${theme}, sandbox)`);
       }
     });
   }

@@ -4,6 +4,7 @@ import { useLayoutEffect, useRef } from 'react';
 
 import { UNIT_MS, type RunUnit } from '@/core/events/builder';
 import type { PhaseSummary } from '@/core/sim/result';
+import { Term } from '@/components/glossary/Term';
 import { cn } from '@/lib/cn';
 
 import { useFrameClock } from './frameClock';
@@ -173,6 +174,26 @@ export function Timeline({
           className="bg-surface-overlay border-border absolute inset-x-0 h-1.5 rounded-full border"
         />
         {/*
+          Phase notches on the track itself (docs/UIUX.md §4.2): one per dispatch,
+          reference or access, at every width. Decorative: the buttons above (at lg) and
+          the phase stepper are the way to a phase.
+        */}
+        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 h-4">
+          {phases.map((phase) =>
+            phase.startMs > 0 ? (
+              <span
+                key={phase.id}
+                data-notch=""
+                style={{ left: `${percentOf(phase.startMs, durationMs)}%` }}
+                className={cn(
+                  'absolute top-0.5 h-3 w-px -translate-x-1/2',
+                  phase.index === currentPhaseIndex ? 'bg-accent' : 'bg-border-strong',
+                )}
+              />
+            ) : null,
+          )}
+        </div>
+        {/*
           Full width, scaled down: `transform` is a compositor property, so the playhead
           advancing does not dirty the page's layout. See the note at the top of the file.
         */}
@@ -210,8 +231,20 @@ export function Timeline({
       </div>
 
       {/* Always shown, unlike Internet Visualizer's: "t = 7" is the lesson, not chrome. */}
-      <div className="text-fg-muted text-caption flex justify-between font-mono">
-        <span ref={elapsedRef}>{formatTimecode(virtualTime, durationMs, unit)}</span>
+      <div className="text-fg-muted text-caption flex items-baseline justify-between font-mono tabular-nums">
+        {/*
+          "t = 7 ticks" (G7): a tick is defined where the number is read. The number is
+          written by the effect above; the unit beside it never changes.
+        */}
+        <span className="text-fg-secondary">
+          <span ref={elapsedRef}>{formatTimecode(virtualTime, durationMs, unit)}</span>
+          {unit === 'tick' ? (
+            <>
+              {' '}
+              <Term id="tick">ticks</Term>
+            </>
+          ) : null}
+        </span>
         <span>{total}</span>
       </div>
     </div>

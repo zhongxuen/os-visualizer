@@ -6,6 +6,8 @@ import type { RunUnit } from '@/core/events/builder';
 import { currentPhaseStart } from '@/core/sim/playback';
 import type { PhaseSummary } from '@/core/sim/result';
 
+import { useRegisterWithWorkspace } from '@/components/shell/workspace';
+
 import { FrameClockContext, type FrameClock } from './frameClock';
 import { usePlaybackState, type PlaybackStore } from './hooks/usePlayback';
 import { PlaybackControls } from './PlaybackControls';
@@ -55,6 +57,9 @@ export function PlaybackBar({
   className,
 }: PlaybackBarProps) {
   const clock = useMemo(() => frameClockFor(store), [store]);
+  // Lets ModuleLayout follow the run: Play switches the phone to Watch, the end-of-run
+  // card, and forward-only step motion. A no-op outside a workspace.
+  useRegisterWithWorkspace(store, unit);
   const status = usePlaybackState(store, (s) => s.status);
   const speed = usePlaybackState(store, (s) => s.speed);
   const durationMs = usePlaybackState(store, (s) => s.timeline.durationMs);

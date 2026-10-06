@@ -3,7 +3,8 @@
 import { useCallback, useSyncExternalStore } from 'react';
 
 /**
- * The viewer's display preferences: theme and "pause after each phase".
+ * The viewer's display preferences: theme, "pause after each phase" and the mode each
+ * module was last used in.
  *
  * A small stand-in for Internet Visualizer's `src/components/prefs` (see VENDORED.md),
  * which keeps its own `localStorage` key. This product has one key, `osv:v1`, shaped
@@ -26,19 +27,33 @@ export interface Prefs {
   theme: ThemeSetting;
   /** Stop playback at each phase boundary until Play is pressed again. */
   pauseAtSteps: boolean;
+  /**
+   * The mode each module was last left in, by module id (G1). A module missing here has
+   * never been visited, so it opens in Guided.
+   */
+  moduleModes: Readonly<Record<string, StoredMode>>;
 }
+
+/** `ModuleLayout`'s modes, as stored: `'walkthrough'` is Guided, `'free'` is Sandbox. */
+export type StoredMode = 'walkthrough' | 'free';
 
 export type PrefKey = keyof Prefs;
 
 export const DEFAULT_PREFS: Readonly<Prefs> = Object.freeze({
   theme: 'system',
   pauseAtSteps: false,
+  moduleModes: Object.freeze({}),
 });
 
 const VALID: { [K in PrefKey]: (value: unknown) => value is Prefs[K] } = {
   theme: (value): value is ThemeSetting =>
     value === 'system' || value === 'light' || value === 'dark',
   pauseAtSteps: (value): value is boolean => typeof value === 'boolean',
+  moduleModes: (value): value is Record<string, StoredMode> =>
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every((mode) => mode === 'walkthrough' || mode === 'free'),
 };
 
 function readRecord(raw: string | null): Record<string, unknown> | null {

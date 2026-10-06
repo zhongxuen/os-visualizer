@@ -1,7 +1,7 @@
 import { Kbd } from './ui/Kbd';
 import { cn } from '@/lib/cn';
 
-import { PLAYBACK_SHORTCUTS } from './keymap';
+import { PLAYBACK_SHORTCUTS, type PlaybackShortcut } from './keymap';
 
 /**
  * The printed keyboard map.
@@ -15,10 +15,16 @@ import { PLAYBACK_SHORTCUTS } from './keymap';
  */
 
 export interface KeyboardLegendProps {
+  /** The map to print. Defaults to playback; the shortcuts sheet also prints the
+   * workspace's and the module's keys with it. */
+  shortcuts?: readonly PlaybackShortcut[];
   className?: string;
 }
 
-export function KeyboardLegend({ className }: KeyboardLegendProps) {
+export function KeyboardLegend({
+  shortcuts = PLAYBACK_SHORTCUTS,
+  className,
+}: KeyboardLegendProps) {
   return (
     <dl
       className={cn(
@@ -26,7 +32,7 @@ export function KeyboardLegend({ className }: KeyboardLegendProps) {
         className,
       )}
     >
-      {PLAYBACK_SHORTCUTS.map((shortcut) => (
+      {shortcuts.map((shortcut) => (
         <div key={shortcut.action} className="contents">
           <dt className="flex flex-wrap items-center gap-1">
             {shortcut.chords.map((chord, index) => (

@@ -138,15 +138,24 @@ describe('PlaybackControls', () => {
     expect(toggle).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('makes the whole keyboard map discoverable from a popover', async () => {
+  it('opens the shortcuts sheet from its keyboard button', async () => {
     const { user } = renderControls();
+    const opened = vi.fn();
+    window.addEventListener('osv:shortcuts', opened);
 
     await user.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));
 
-    for (const shortcut of PLAYBACK_SHORTCUTS) {
-      expect(screen.getByText(shortcut.action)).toBeInTheDocument();
-    }
-    expect(screen.getByText('Space')).toBeInTheDocument();
+    expect(opened).toHaveBeenCalledTimes(1);
+    window.removeEventListener('osv:shortcuts', opened);
+  });
+
+  it('offers the speeds in the narrow bar menu too', async () => {
+    const { onCommand, user } = renderControls();
+
+    await user.click(screen.getByRole('button', { name: 'More playback options' }));
+    const menu = within(screen.getByRole('dialog', { name: 'More playback options' }));
+    await user.click(menu.getByRole('button', { name: '2x' }));
+    expect(onCommand).toHaveBeenLastCalledWith({ type: 'speed', speed: 2 });
   });
 
   it('gathers the extras into one menu for a narrow bar', async () => {

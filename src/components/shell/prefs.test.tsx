@@ -19,18 +19,32 @@ describe('parsePrefs', () => {
     expect(parsePrefs('{"v":1,"prefs":{"theme":"dark","pauseAtSteps":"yes"}}')).toEqual({
       theme: 'dark',
       pauseAtSteps: false,
+      moduleModes: {},
     });
+  });
+
+  it('keeps a valid map of module modes and drops an invalid one', () => {
+    expect(
+      parsePrefs('{"v":1,"prefs":{"moduleModes":{"scheduling":"free"}}}').moduleModes,
+    ).toEqual({ scheduling: 'free' });
+    expect(
+      parsePrefs('{"v":1,"prefs":{"moduleModes":{"scheduling":"lesson"}}}').moduleModes,
+    ).toEqual({});
   });
 });
 
 describe('writePrefs', () => {
   it('keeps every other field of the shared key', () => {
     const raw = JSON.stringify({ v: 1, completed: ['scheduling'], saved: { a: [1] } });
-    expect(JSON.parse(writePrefs(raw, { theme: 'light', pauseAtSteps: true }))).toEqual({
+    expect(
+      JSON.parse(
+        writePrefs(raw, { ...DEFAULT_PREFS, theme: 'light', pauseAtSteps: true }),
+      ),
+    ).toEqual({
       v: 1,
       completed: ['scheduling'],
       saved: { a: [1] },
-      prefs: { theme: 'light', pauseAtSteps: true },
+      prefs: { theme: 'light', pauseAtSteps: true, moduleModes: {} },
     });
   });
 
@@ -52,6 +66,7 @@ describe('the shared store', () => {
     expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY)!).prefs).toEqual({
       theme: 'system',
       pauseAtSteps: true,
+      moduleModes: {},
     });
   });
 });
