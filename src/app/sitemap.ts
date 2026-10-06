@@ -18,6 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     })),
     { url: absoluteUrl('/learn'), changeFrequency: 'monthly', priority: 0.7 },
+    { url: absoluteUrl('/learn/glossary'), changeFrequency: 'monthly', priority: 0.5 },
     { url: absoluteUrl('/about'), changeFrequency: 'monthly', priority: 0.5 },
   ];
 }

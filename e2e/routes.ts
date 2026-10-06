@@ -22,6 +22,7 @@ export const ROUTES: readonly Route[] = [
     module: true,
   })),
   { name: 'Learn', path: '/learn', module: false },
+  { name: 'Glossary', path: '/learn/glossary', module: false },
   { name: 'About', path: '/about', module: false },
   { name: 'Not found', path: '/no-such-page', module: false },
 ];
