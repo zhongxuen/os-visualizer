@@ -24,10 +24,17 @@ export function parseNumber(text: string): number {
   return Number.NaN;
 }
 
+/**
+ * A field's messages, next to it. Always in the page (empty when all is well) so the
+ * live region exists before a message appears, and the message is announced (G11).
+ */
 export function Messages({ id, messages }: { id: string; messages: readonly string[] }) {
-  if (messages.length === 0) return null;
   return (
-    <ul id={id} className="text-caption text-state-error flex flex-col gap-0.5">
+    <ul
+      id={id}
+      aria-live="polite"
+      className="text-caption text-state-error flex flex-col gap-0.5"
+    >
       {messages.map((m) => (
         <li key={m}>{m}</li>
       ))}
