@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { Term } from '@/components/glossary';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
-import { RulesPanel } from '@/components/inspector/RulesPanel';
-import { StepInspector } from '@/components/inspector/StepInspector';
+import { RulesPanel, ruleUsed, StepInspector } from '@/components/inspector';
 import { Walkthrough } from '@/components/lesson/Walkthrough';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
 import { useShareState } from '@/components/state/useShareState';
@@ -27,11 +27,14 @@ import { SYNC_SHARE_STATE, type SyncInput } from '@/core/sync/state';
 
 import {
   eventsAt,
+  lostUpdatesAt,
   picksUpTo,
   primaryEvent,
+  ruleForEvent,
   runTicks,
   runVerdict,
   snapshotAt,
+  TRY_NEXT,
   type HistogramRow,
 } from './adapters';
 import { Panel, SelectField } from './fields';
@@ -39,6 +42,7 @@ import { activeExample, LESSON, LESSON_CHECKPOINTS, LESSON_EXAMPLES } from './le
 import { MemoryView } from './MemoryView';
 import { OutcomeHistogram } from './OutcomeHistogram';
 import { ScheduleBar } from './ScheduleBar';
+import { MODULE_SHORTCUTS, threadForKey } from './shortcuts';
 import { ThreadColumns } from './ThreadColumns';
 import { useTickRun } from './useTickRun';
 
@@ -50,7 +54,7 @@ const CITATIONS = createRegistry([
 
 /**
  * Synchronisation: threads as lists of micro-ops, run one op per tick under a schedule
- * you pick by hand (keys 1, 2, 3), round robin or a seeded random scheduler. The race,
+ * you pick by hand (keys A, B, C), round robin or a seeded random scheduler. The race,
  * the mutex and the semaphores are the core's; this view shows them, and the outcome of
  * every interleaving beside the one on screen.
  */
@@ -67,18 +71,29 @@ export function SyncView() {
   const exploration = useMemo(() => explore(program), [program]);
   const { store, tick, total, moment, phaseIndex } = useTickRun(run, share);
 
-  // Where to put the playhead once the next run is in place (a pick, a loaded outcome).
+  // Where to put the playhead once the next run is in place (a pick, a loaded outcome),
+  // and whether to play from there (a loaded outcome plays from the start, so the
+  // schedule fills in tick by tick).
   const pendingSeek = useRef<number | null>(null);
+  const pendingPlay = useRef(false);
   useEffect(() => {
     const target = pendingSeek.current;
     if (target === null) return;
     pendingSeek.current = null;
     store.getState().seek(Math.min(target, runTicks(run)) * TICK_MS);
+    if (pendingPlay.current) {
+      pendingPlay.current = false;
+      store.getState().play();
+    }
   }, [run, store]);
 
   const events = eventsAt(run, tick);
   const snapshot = snapshotAt(run, tick) ?? run.events[0]!.state;
   const lastState = run.events[run.events.length - 1]!.state;
+  const lost = lostUpdatesAt(program, run, tick);
+  const current = primaryEvent(events);
+  // The rule behind this tick: the closing event's if it has one, else its op's.
+  const ruleId = [...events].reverse().map(ruleForEvent).find(Boolean) ?? null;
 
   const setInput = useCallback(
     (next: SyncInput, seek: number | null = null) => {
@@ -113,9 +128,10 @@ export function SyncView() {
     setStatus(`Picked ${name}.`);
   };
 
-  // Keys 1, 2, 3 pick a thread under a manual schedule. They are the speed keys
-  // everywhere else, so the capture phase claims them first and marks them handled.
-  // The handler reads `pick` through a ref, so it always picks from the state on screen.
+  // Keys A, B, C pick a thread under a manual schedule (Y1, B6; listed in shortcuts.ts,
+  // so the shortcuts sheet prints them and the keymap test checks they clash with no
+  // playback or workspace key). The handler reads `pick` through a ref, so it always
+  // picks from the state on screen.
   const pickRef = useRef(pick);
   useEffect(() => {
     pickRef.current = pick;
@@ -128,21 +144,36 @@ export function SyncView() {
       if (event.ctrlKey || event.metaKey || event.altKey || event.defaultPrevented)
         return;
       if (isTypingTarget(event.target)) return;
-      const t = Number(event.key) - 1;
-      if (!Number.isInteger(t) || t < 0 || t >= threadCount) return;
+      const t = threadForKey(event.key);
+      if (t === null || t >= threadCount) return;
       event.preventDefault();
       pickRef.current(t);
     };
-    window.addEventListener('keydown', onKey, { capture: true });
-    return () => window.removeEventListener('keydown', onKey, { capture: true });
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, [manual, threadCount]);
 
   const loadOutcome = (row: HistogramRow) => {
-    setSchedule({ kind: 'manual', picks: row.example }, row.example.length);
-    setStatus(`Loaded an interleaving that ends ${row.label}.`);
+    pendingPlay.current = true;
+    setSchedule({ kind: 'manual', picks: row.example }, 0);
+    setStatus(
+      `Loaded an interleaving that ends ${row.label}. Playing it from the start.`,
+    );
   };
 
   const preset = SYNC_PRESETS.find((p) => p.id === presetId) ?? DEFAULT_PRESET;
+
+  const loadPreset = (id: string) => {
+    const chosen = SYNC_PRESETS.find((p) => p.id === id) ?? DEFAULT_PRESET;
+    setPresetId(chosen.id);
+    setInput({ preset: chosen.id, program: chosen.program, schedule: chosen.schedule });
+    setStatus(`Loaded preset: ${chosen.title}`);
+  };
+
+  const contrast = TRY_NEXT[input.preset];
+  const contrastPreset = contrast
+    ? SYNC_PRESETS.find((p) => p.id === contrast.preset)
+    : undefined;
 
   const inputs = (
     <div className="flex flex-col gap-4">
@@ -154,18 +185,7 @@ export function SyncView() {
           onChange={setPresetId}
         />
         <p className="text-caption text-fg-muted">{preset.summary}</p>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => {
-            setInput({
-              preset: preset.id,
-              program: preset.program,
-              schedule: preset.schedule,
-            });
-            setStatus(`Loaded preset: ${preset.title}`);
-          }}
-        >
+        <Button variant="primary" size="sm" onClick={() => loadPreset(preset.id)}>
           Load preset
         </Button>
       </Panel>
@@ -178,34 +198,16 @@ export function SyncView() {
           onTakeOver={takeOver}
         />
       </Panel>
-      <Panel title="Share">
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={!share.shareable}
-          onClick={async () => {
-            const url = share.link();
-            if (!url) return;
-            try {
-              await navigator.clipboard.writeText(url);
-              setStatus('Link copied.');
-            } catch {
-              setStatus('The link is in the address bar.');
-            }
-          }}
-        >
-          Copy link
-        </Button>
-        <p role="status" className="text-caption text-fg-muted min-h-4">
-          {status}
-        </p>
-      </Panel>
     </div>
   );
 
   const inspector = (
     <div className="flex flex-col gap-4">
-      <StepInspector heading={`At tick ${tick}`} event={primaryEvent(events)}>
+      <StepInspector
+        heading={`At tick ${tick}`}
+        event={current}
+        rule={ruleUsed(SYNC_RULES, ruleId)}
+      >
         {events.length > 1 ? (
           <ol
             aria-label={`Everything at tick ${tick}`}
@@ -217,7 +219,7 @@ export function SyncView() {
           </ol>
         ) : null}
       </StepInspector>
-      <RulesPanel rules={SYNC_RULES} />
+      <RulesPanel rules={SYNC_RULES} currentRuleId={ruleId} />
       <div>
         <h2 className="text-small text-fg-muted mb-2 font-semibold">Phases</h2>
         <PhaseStepper
@@ -231,16 +233,61 @@ export function SyncView() {
   );
 
   const examples = LESSON_EXAMPLES;
+  const ended = tick >= total || !lastState.result;
+
+  const results = (
+    <div className="flex flex-col gap-6">
+      <section aria-labelledby="result-heading" className="flex flex-col gap-2">
+        <h2 id="result-heading" className="text-lead font-semibold">
+          This run
+        </h2>
+        <p className="text-small" data-testid="run-verdict">
+          {ended ? runVerdict(program, run) : 'Step to the end to see how this run ends.'}
+        </p>
+      </section>
+
+      <section aria-labelledby="outcomes-heading" className="flex flex-col gap-2">
+        <h2 id="outcomes-heading" className="text-lead font-semibold">
+          Every interleaving
+        </h2>
+        <OutcomeHistogram exploration={exploration} onLoad={loadOutcome} />
+      </section>
+    </div>
+  );
 
   return (
     <CitationsProvider citations={CITATIONS}>
       <ModuleLayout
         title="Synchronisation"
-        intro="Run two or three threads one micro-op at a time, choose who goes next, and watch an update get lost. Then fix it with a mutex, and share a buffer with semaphores."
+        moduleId="sync"
+        intro={
+          <>
+            Run two or three <Term id="thread">threads</Term> one micro-op per{' '}
+            <Term id="tick">tick</Term>, choose who goes next, and watch a{' '}
+            <Term id="race-condition">race</Term> make an update get lost. Then fix it
+            with a <Term id="mutex">mutex</Term>, and share a buffer with{' '}
+            <Term id="semaphore">semaphores</Term>.
+          </>
+        }
         mode={mode}
         onModeChange={setMode}
         inputs={inputs}
         inspector={inspector}
+        results={results}
+        endOfRun={{
+          result: runVerdict(program, run),
+          ...(contrast && contrastPreset
+            ? {
+                tryNext: {
+                  label: contrastPreset.title,
+                  why: contrast.why,
+                  onSelect: () => loadPreset(contrastPreset.id),
+                },
+              }
+            : {}),
+        }}
+        share={{ link: share.link, shareable: share.shareable }}
+        shortcuts={MODULE_SHORTCUTS}
         timeline={<PlaybackBar store={store} phases={run.phases} unit="tick" />}
       >
         <div className="flex flex-col gap-6">
@@ -282,31 +329,16 @@ export function SyncView() {
               snapshot={snapshot}
               onPick={manual ? pick : undefined}
             />
+            <p role="status" className="text-caption text-fg-muted min-h-4">
+              {status}
+            </p>
           </section>
 
           <section aria-labelledby="memory-heading" className="flex flex-col gap-2">
             <h2 id="memory-heading" className="text-lead font-semibold">
               Shared memory at tick {tick}
             </h2>
-            <MemoryView program={program} snapshot={snapshot} />
-          </section>
-
-          <section aria-labelledby="result-heading" className="flex flex-col gap-2">
-            <h2 id="result-heading" className="text-lead font-semibold">
-              This run
-            </h2>
-            <p className="text-small" data-testid="run-verdict">
-              {tick >= total || !lastState.result
-                ? runVerdict(program, run)
-                : 'Step to the end to see how this run ends.'}
-            </p>
-          </section>
-
-          <section aria-labelledby="outcomes-heading" className="flex flex-col gap-2">
-            <h2 id="outcomes-heading" className="text-lead font-semibold">
-              Every interleaving
-            </h2>
-            <OutcomeHistogram exploration={exploration} onLoad={loadOutcome} />
+            <MemoryView program={program} snapshot={snapshot} lost={lost} />
           </section>
         </div>
       </ModuleLayout>

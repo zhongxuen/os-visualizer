@@ -53,6 +53,10 @@ export function SelectField<T extends string>({
 /**
  * A whole-number field that keeps what you type and reports a value only when it is a
  * whole number in range; anything else shows a message and changes nothing.
+ *
+ * `message` is the field's own sentence for a bad value (G11: "The quantum is 1 to 8
+ * ticks"); the message sits next to the field in a polite live region, so it is
+ * announced as well as shown.
  */
 export function IntField({
   label,
@@ -60,6 +64,7 @@ export function IntField({
   min,
   max,
   onChange,
+  message,
   className,
 }: {
   label: string;
@@ -67,6 +72,7 @@ export function IntField({
   min: number;
   max: number;
   onChange: (value: number) => void;
+  message?: string;
   className?: string;
 }) {
   const id = useId();
@@ -81,7 +87,7 @@ export function IntField({
   const error =
     Number.isInteger(n) && n >= min && n <= max
       ? null
-      : `Enter a whole number from ${min} to ${max}`;
+      : (message ?? `Enter a whole number from ${min} to ${max}`);
 
   return (
     <span className={cn('flex min-w-0 flex-col gap-1', className)}>
@@ -107,11 +113,9 @@ export function IntField({
           }
         }}
       />
-      {error ? (
-        <span id={`${id}-err`} className="text-caption text-state-error">
-          {error}
-        </span>
-      ) : null}
+      <span id={`${id}-err`} aria-live="polite" className="text-caption text-state-error">
+        {error}
+      </span>
     </span>
   );
 }
