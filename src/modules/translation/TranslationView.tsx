@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { ChevronDown, Pencil } from 'lucide-react';
 import { lazy, Suspense, useEffect, useId, useMemo, useState } from 'react';
 
@@ -8,7 +9,6 @@ import { Term } from '@/components/glossary';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
 import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { ruleUsed, StepInspector } from '@/components/inspector/StepInspector';
-import { Walkthrough } from '@/components/lesson/Walkthrough';
 import { Ticker } from '@/components/motion';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
 import { useShareState } from '@/components/state/useShareState';
@@ -18,7 +18,6 @@ import { PlaybackBar } from '@/components/timeline/PlaybackBar';
 import { StepCaption } from '@/components/timeline/StepCaption';
 import { Button } from '@/components/timeline/ui/Button';
 import { Tabs } from '@/components/ui';
-import TranslationLesson from '@/content/lessons/translation.mdx';
 import { createRegistry } from '@/core/citations/registry';
 import { vmCitations } from '@/core/vm/citations';
 import { geometry, type VmInput } from '@/core/vm/config';
@@ -56,6 +55,12 @@ import { TlbView } from './TlbView';
 import { useStepRun } from './useStepRun';
 
 import { walkAt, WalkPath } from './WalkPath';
+
+/** Guided mode's lesson: client-only, its own chunk, out of first-load JS. */
+const GuidedLesson = dynamic(() => import('./GuidedLesson'), {
+  ssr: false,
+  loading: () => <p className="text-fg-muted text-small">Loading the lesson…</p>,
+});
 
 const CITATIONS = createRegistry([vmCitations]);
 
@@ -481,9 +486,8 @@ export function TranslationView() {
       >
         <div className="flex flex-col gap-6">
           {mode === 'walkthrough' ? (
-            <Walkthrough
+            <GuidedLesson
               lesson={LESSON}
-              Content={TranslationLesson}
               store={store}
               unit="step"
               examples={LESSON_EXAMPLES}
