@@ -157,7 +157,13 @@ describe('panels', { timeout: 30_000 }, () => {
       'assumed',
       'holds',
     ]);
-    expect(within(items[0]!).getByText('Assumed')).toBeInTheDocument();
+    expect(within(items[0]!).getByText('Always true here')).toBeInTheDocument();
+    expect(
+      within(items[0]!).getByText(
+        'Always true here: this simulator never shares a resource instance.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Assumed by the model/)).toBeNull();
     expect(
       screen.getByText(/necessary for deadlock, not sufficient/),
     ).toBeInTheDocument();
@@ -201,7 +207,13 @@ describe('panels', { timeout: 30_000 }, () => {
     expect(screen.getByTestId('matrix-compare')).toHaveTextContent(
       'Request[T1] ≤ Work: no, at least one resource does not fit',
     );
-    expect(screen.getByTestId('work')).toHaveTextContent('010');
+    expect(screen.getByTestId('work-bar')).toHaveAttribute('data-work', '0 1 0');
+    // Per-column checks: which resource blocks T1.
+    const strip = screen.getByTestId('compare-strip');
+    expect(strip).toHaveAttribute('data-fits', 'false');
+    expect(screen.getByTestId('compare-verdict')).toHaveTextContent(
+      /^No: R0 and R2 do not fit.$/,
+    );
     await expectNoAxeViolations(container);
   });
 

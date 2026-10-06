@@ -23,8 +23,11 @@ test('deadlock: build two locks with the form, find the cycle, terminate T1, axe
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Deadlock');
 
   // Retry until hydrated: a change made before React attaches is lost.
+  // Presets first (G10): the editor opens from "Edit the graph".
   await expect(async () => {
-    await page.getByRole('button', { name: 'Clear graph' }).click();
+    const edit = page.getByRole('button', { name: 'Edit the graph' });
+    if ((await edit.getAttribute('aria-expanded')) !== 'true') await edit.click();
+    await page.getByRole('button', { name: 'Clear graph' }).click({ timeout: 500 });
     await expect(page.getByText(/^Cleared:/)).toBeVisible({ timeout: 500 });
   }).toPass();
   await expect(page.getByTestId('graph-summary')).toContainText('No cycle.');
@@ -59,7 +62,7 @@ test('deadlock: build two locks with the form, find the cycle, terminate T1, axe
   await expect(
     page
       .locator('[data-condition="mutual-exclusion"]')
-      .getByText('Assumed', { exact: true }),
+      .getByText('Always true here', { exact: true }),
   ).toBeVisible();
 
   await page.getByLabel('Thread to terminate').selectOption('T1');
