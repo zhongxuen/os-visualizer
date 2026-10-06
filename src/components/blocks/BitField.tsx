@@ -5,6 +5,11 @@ import { cn } from '@/lib/cn';
  * offset). Each field shows its bits, and its value in binary, hex and decimal; the field
  * the current step is about is highlighted, in words as well as with the accent border.
  *
+ * Two optional props, both off by default so existing callers are unchanged (U3.3):
+ * `base` shows each value in one base only (binary, hex or decimal), with the other two
+ * on hover (`title`) and in the accessible text; `tinted` gives each field a light tint
+ * and a coloured top edge, so the fields read apart at a glance.
+ *
  * Arithmetic is by division, not bitwise operators, so a field may sit above bit 31 (up
  * to 53-bit addresses, JavaScript's safe-integer limit).
  */
@@ -17,6 +22,9 @@ export interface BitFieldPart {
   bits: number;
 }
 
+/** A number base, for `base`. */
+export type NumberBase = 'binary' | 'hex' | 'decimal';
+
 export interface BitFieldProps {
   /** The address. A non-negative integer below `2 ** width`. */
   value: number;
@@ -26,6 +34,13 @@ export interface BitFieldProps {
   highlight?: string;
   /** e.g. "Virtual address". */
   label?: string;
+  /**
+   * Show values in this base only, the other two on hover and to screen readers.
+   * Omitted, each field lists binary, hex and decimal (the original layout).
+   */
+  base?: NumberBase;
+  /** Tint each field and give it a coloured top edge. Off by default. */
+  tinted?: boolean;
   className?: string;
 }
 
@@ -60,11 +75,33 @@ export function splitFields(
   });
 }
 
+/** `value` written in `base`; binary and hex are padded to `bits`. */
+export function inBase(value: number, bits: number, base: NumberBase): string {
+  if (base === 'binary') return value.toString(2).padStart(bits, '0');
+  if (base === 'hex') {
+    return `0x${value.toString(16).toUpperCase().padStart(hexDigits(bits), '0')}`;
+  }
+  return String(value);
+}
+
+/** The other two bases, in words: "hex 0x6, decimal 6". */
+export function otherBases(value: number, bits: number, base: NumberBase): string {
+  return (['binary', 'hex', 'decimal'] as const)
+    .filter((b) => b !== base)
+    .map((b) => `${b} ${inBase(value, bits, b)}`)
+    .join(', ');
+}
+
+/** Field tints, by position: edge colours from the process palette. */
+const TINTS = ['var(--proc-edge-0)', 'var(--proc-edge-1)', 'var(--proc-edge-2)'];
+
 export function BitField({
   value,
   fields,
   highlight,
   label = 'Address',
+  base,
+  tinted = false,
   className,
 }: BitFieldProps) {
   const width = fields.reduce((sum, field) => sum + field.bits, 0);
@@ -72,18 +109,32 @@ export function BitField({
   const hex = `0x${value.toString(16).toUpperCase().padStart(hexDigits(width), '0')}`;
 
   return (
-    <figure className={cn('flex flex-col gap-2', className)}>
-      <figcaption className="text-small">
-        <span className="font-semibold">{label}</span>{' '}
-        <span className="font-mono">{hex}</span>{' '}
-        <span className="text-fg-muted">
-          ({value} decimal, {width} bits)
-        </span>
-      </figcaption>
+    <figure className={cn('flex flex-col gap-2', className)} data-base={base}>
+      {base ? (
+        <figcaption className="text-small">
+          <span className="font-semibold">{label}</span>{' '}
+          <span className="font-mono" title={otherBases(value, width, base)}>
+            {inBase(value, width, base)}
+          </span>{' '}
+          <span className="text-fg-muted">
+            ({base}, {width} bits)
+          </span>
+          <span className="sr-only">; {otherBases(value, width, base)}</span>
+        </figcaption>
+      ) : (
+        <figcaption className="text-small">
+          <span className="font-semibold">{label}</span>{' '}
+          <span className="font-mono">{hex}</span>{' '}
+          <span className="text-fg-muted">
+            ({value} decimal, {width} bits)
+          </span>
+        </figcaption>
+      )}
       <div className="flex flex-wrap gap-2">
-        {parts.map((part) => {
+        {parts.map((part, index) => {
           const active = part.id === highlight;
           const high = part.low + part.bits - 1;
+          const tint = TINTS[index % TINTS.length]!;
           return (
             <div
               key={part.id}
@@ -93,6 +144,15 @@ export function BitField({
                 'bg-surface-raised flex flex-col gap-1 rounded-md border p-2',
                 active ? 'border-accent border-2' : 'border-border',
               )}
+              style={
+                tinted
+                  ? {
+                      backgroundColor: `color-mix(in oklab, ${tint} 8%, var(--surface))`,
+                      borderTopColor: tint,
+                      borderTopWidth: '4px',
+                    }
+                  : undefined
+              }
             >
               <p className="text-small font-semibold">
                 {part.name}
@@ -114,16 +174,31 @@ export function BitField({
                   </span>
                 ))}
               </div>
-              <dl className="text-caption grid grid-cols-[auto_1fr] gap-x-2 font-mono">
-                <dt className="text-fg-muted font-sans">Bits</dt>
-                <dd>{high === part.low ? part.low : `${high}–${part.low}`}</dd>
-                <dt className="text-fg-muted font-sans">Binary</dt>
-                <dd>{part.binary}</dd>
-                <dt className="text-fg-muted font-sans">Hex</dt>
-                <dd>{part.hex}</dd>
-                <dt className="text-fg-muted font-sans">Decimal</dt>
-                <dd>{part.value}</dd>
-              </dl>
+              {base ? (
+                <dl className="text-caption grid grid-cols-[auto_1fr] gap-x-2 font-mono">
+                  <dt className="text-fg-muted font-sans">Bits</dt>
+                  <dd>{high === part.low ? part.low : `${high}–${part.low}`}</dd>
+                  <dt className="text-fg-muted font-sans">Value</dt>
+                  <dd title={otherBases(part.value, part.bits, base)}>
+                    {inBase(part.value, part.bits, base)}
+                    <span className="sr-only">
+                      {' '}
+                      ({otherBases(part.value, part.bits, base)})
+                    </span>
+                  </dd>
+                </dl>
+              ) : (
+                <dl className="text-caption grid grid-cols-[auto_1fr] gap-x-2 font-mono">
+                  <dt className="text-fg-muted font-sans">Bits</dt>
+                  <dd>{high === part.low ? part.low : `${high}–${part.low}`}</dd>
+                  <dt className="text-fg-muted font-sans">Binary</dt>
+                  <dd>{part.binary}</dd>
+                  <dt className="text-fg-muted font-sans">Hex</dt>
+                  <dd>{part.hex}</dd>
+                  <dt className="text-fg-muted font-sans">Decimal</dt>
+                  <dd>{part.value}</dd>
+                </dl>
+              )}
             </div>
           );
         })}

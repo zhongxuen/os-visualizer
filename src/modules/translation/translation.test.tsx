@@ -219,15 +219,21 @@ describe('TranslationView', { timeout: 30_000 }, () => {
       for (let i = 0; i < fault; i += 1) await user.keyboard('{ArrowRight}');
     });
     const inspector = screen.getByRole('region', { name: 'Inspector' });
-    expect(
-      within(inspector).getByRole('link', { name: /Page Replacement/ }),
-    ).toHaveAttribute('href', '/replacement');
+    const href = within(inspector)
+      .getByRole('link', { name: /Page Replacement/ })
+      .getAttribute('href');
+    expect(href).toMatch(/^\/replacement\?s=/);
   });
 
   it('runs an edited access list', async () => {
     const user = userEvent.setup();
     render(<TranslationView />);
-    const box = screen.getByLabelText(/Virtual addresses, in order/);
+    await user.click(screen.getByRole('button', { name: /Edit this input/ }));
+    const box = await screen.findByLabelText(
+      /Virtual addresses, in order/,
+      {},
+      { timeout: 15_000 },
+    );
     await user.clear(box);
     await user.type(box, '100, 100');
     await act(async () => {
@@ -245,9 +251,16 @@ describe('TranslationView', { timeout: 30_000 }, () => {
   it('shows a schema message for an address too big for the VA', async () => {
     const user = userEvent.setup();
     render(<TranslationView />);
-    const box = screen.getByLabelText(/Virtual addresses, in order/);
+    await user.click(screen.getByRole('button', { name: /Edit this input/ }));
+    const box = await screen.findByLabelText(
+      /Virtual addresses, in order/,
+      {},
+      { timeout: 15_000 },
+    );
     await user.clear(box);
     await user.type(box, '300');
-    expect(screen.getByText('Access 1: Address must be below 256')).toBeInTheDocument();
+    expect(
+      screen.getByText('Access 1: addresses here go up to 255 (8-bit addresses).'),
+    ).toBeInTheDocument();
   });
 });

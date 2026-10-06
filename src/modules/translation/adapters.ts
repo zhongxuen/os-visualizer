@@ -4,7 +4,7 @@
  */
 
 import type { BitFieldPart } from '@/components/blocks/BitField';
-import type { Access, Geometry, VmInput } from '@/core/vm/config';
+import type { Access, Geometry, VmConfig, VmInput } from '@/core/vm/config';
 import { PTE_BYTES } from '@/core/vm/config';
 import type { VmCounters, VmEvent } from '@/core/vm/events';
 import type { Pde, Pte } from '@/core/vm/memory';
@@ -191,28 +191,73 @@ export function formatAccesses(accesses: readonly Access[], vaBits: number): str
  * unknown op, so the schema reports it against the right access.
  */
 export function parseAccesses(text: string): { va: number; op: string }[] {
+  return accessTokens(text).map((token) => {
+    const [va = '', op = 'r', ...rest] = token.split(/\s+/);
+    const parsedVa = /^(0x[0-9a-f]+|\d+)$/i.test(va)
+      ? va.toLowerCase().startsWith('0x')
+        ? parseInt(va.slice(2), 16)
+        : Number(va)
+      : Number.NaN;
+    const o = op.toLowerCase();
+    const parsedOp =
+      rest.length > 0
+        ? 'invalid'
+        : o === 'r' || o === 'read'
+          ? 'read'
+          : o === 'w' || o === 'write'
+            ? 'write'
+            : 'invalid';
+    return { va: parsedVa, op: parsedOp };
+  });
+}
+
+/** The access list's tokens as typed, one per access: `'100, 104 w'` → `['100', '104 w']`. */
+export function accessTokens(text: string): string[] {
   return text
     .split(/[,;\n]+/)
     .map((token) => token.trim())
-    .filter(Boolean)
-    .map((token) => {
-      const [va = '', op = 'r', ...rest] = token.split(/\s+/);
-      const parsedVa = /^(0x[0-9a-f]+|\d+)$/i.test(va)
-        ? va.toLowerCase().startsWith('0x')
-          ? parseInt(va.slice(2), 16)
-          : Number(va)
-        : Number.NaN;
-      const o = op.toLowerCase();
-      const parsedOp =
-        rest.length > 0
-          ? 'invalid'
-          : o === 'r' || o === 'read'
-            ? 'read'
-            : o === 'w' || o === 'write'
-              ? 'write'
-              : 'invalid';
-      return { va: parsedVa, op: parsedOp };
-    });
+    .filter(Boolean);
+}
+
+/**
+ * The rule that decided this step, for the "Rule used" chip (G5), or `null` when the
+ * step follows from the input alone.
+ */
+export function ruleIdFor(event: VmEvent | undefined, config: VmConfig): string | null {
+  if (!event) return null;
+  switch (event.kind) {
+    case 'vm.split':
+      return config.levels === 2 ? 'vm.split.twoLevel' : null;
+    case 'vm.tlbHit':
+      return 'vm.order.tlbFirst';
+    case 'vm.tlbMiss':
+      return config.tlbSize === 0 ? 'vm.tlb.none' : 'vm.walk.hardware';
+    case 'vm.readPde':
+    case 'vm.readPte':
+      return 'vm.pte.address';
+    case 'vm.protOk':
+      return event.slot !== undefined ? 'vm.prot.hit' : null;
+    case 'vm.fault':
+      return 'vm.fault.stop';
+    case 'vm.tlbInsert':
+      return 'vm.tlb.fill';
+    case 'vm.physical':
+      return 'vm.bits.hardware';
+    case 'vm.memory':
+      return 'vm.refs.count';
+    default:
+      return null;
+  }
+}
+
+/**
+ * The field split in words, with the numbers derived (T1): "16-byte pages → 4 offset
+ * bits; 8-bit address − 4 = 4 VPN bits → 16 pages."
+ */
+export function splitExplainer(g: Geometry): string {
+  const base = `${g.pageSize}-byte pages → ${g.offsetBits} offset bits; ${g.vaBits}-bit address − ${g.offsetBits} = ${g.vpnBits} VPN bits → ${g.pages} pages`;
+  if (g.levels !== 2) return `${base}.`;
+  return `${base}. Two levels: ${g.ptesPerPage} four-byte entries fill a page → ${g.ptIndexBits} table-index bits; the other ${g.pdIndexBits} VPN bits index the directory.`;
 }
 
 /** A short summary of an input, for a heading or a status line. */

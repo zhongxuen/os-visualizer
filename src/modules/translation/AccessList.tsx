@@ -27,7 +27,13 @@ function outcome(result: AccessResult, g: Geometry): string {
 
 export function AccessList({ g, accesses, log, current }: AccessListProps) {
   return (
-    <div className="overflow-x-auto">
+    // Focusable, so a table wider than a phone can be scrolled from the keyboard.
+    <div
+      role="group"
+      aria-label="Access list"
+      tabIndex={0}
+      className="focus-visible:outline-focus relative overflow-x-auto focus-visible:outline-2 focus-visible:outline-offset-2"
+    >
       <table className="text-small w-full">
         <caption className="text-caption text-fg-muted text-left">
           Accesses ({log.length} of {accesses.length} done)

@@ -1,12 +1,13 @@
 'use client';
 
 import { Plus, Trash2, Wand2 } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 
 import { Button } from '@/components/timeline/ui/Button';
 import { LIMITS, type ValidationIssue, type VmInput } from '@/core/vm/config';
 import { cn } from '@/lib/cn';
 
+import { parseAccesses } from './adapters';
 import {
   autoDirectory,
   draftKey,
@@ -20,6 +21,7 @@ import {
   type VmDraft,
 } from './draft';
 import { INPUT, Messages, Panel, SelectField, TextField } from './fields';
+import { humanIssues } from './messages';
 
 /**
  * The input editors: the machine, the page table (and directory, for two levels) and the
@@ -51,6 +53,7 @@ export function ConfigPanel({ draft, issues, update }: PartProps) {
     update(next);
   };
   const c = draft.config;
+  const ptbrIssues = at('ptbr');
   return (
     <Panel title="Machine">
       <div className="grid grid-cols-2 gap-2">
@@ -93,27 +96,51 @@ export function ConfigPanel({ draft, issues, update }: PartProps) {
           }))}
           onChange={(tlbSize) => set({ tlbSize })}
         />
-        <SelectField
-          label="TLB replacement"
-          value={c.tlbPolicy}
-          options={[
-            { value: 'lru', label: 'LRU' },
-            { value: 'fifo', label: 'FIFO' },
-          ]}
-          onChange={(tlbPolicy) => set({ tlbPolicy })}
-        />
-        <TextField
-          label={
-            c.levels === '2' ? 'PDBR (page directory base)' : 'PTBR (page table base)'
-          }
-          value={c.ptbr}
-          hint="Physical address; decimal or 0x hex"
-          onChange={(ptbr) => set({ ptbr })}
-          messages={at('ptbr')}
-          className="col-span-2"
-        />
       </div>
+      <MoreOptions open={ptbrIssues.length > 0}>
+        <div className="grid grid-cols-2 gap-2">
+          <SelectField
+            label="TLB replacement"
+            value={c.tlbPolicy}
+            options={[
+              { value: 'lru', label: 'LRU (least recently used)' },
+              { value: 'fifo', label: 'FIFO (first in, first out)' },
+            ]}
+            onChange={(tlbPolicy) => set({ tlbPolicy })}
+            className="col-span-2"
+          />
+          <TextField
+            label={
+              c.levels === '2'
+                ? 'PDBR (page-directory base register)'
+                : 'PTBR (page-table base register)'
+            }
+            value={c.ptbr}
+            hint="Where the table starts in physical memory; decimal or 0x hex"
+            onChange={(ptbr) => set({ ptbr })}
+            messages={ptbrIssues}
+            className="col-span-2"
+          />
+        </div>
+      </MoreOptions>
     </Panel>
+  );
+}
+
+/**
+ * "More options" (G10): the settings a first run doesn't need. Opens by itself when one
+ * of them has a problem, so a message is never hidden.
+ */
+function MoreOptions({ open, children }: { open: boolean; children: ReactNode }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (open && ref.current) ref.current.open = true;
+  }, [open]);
+  return (
+    <details ref={ref} className="border-border border-t pt-2">
+      <summary className="text-small cursor-pointer font-semibold">More options</summary>
+      <div className="pt-2">{children}</div>
+    </details>
   );
 }
 
@@ -328,12 +355,8 @@ export function PageTableEditor({ draft, issues, update }: PartProps) {
 
 export function AccessEditor({ draft, issues, update }: PartProps) {
   const id = useId();
-  const messages = issues
-    .filter((i) => i.path[0] === 'accesses')
-    .map((i) =>
-      typeof i.path[1] === 'number' ? `Access ${i.path[1] + 1}: ${i.message}` : i.message,
-    );
-  const unique = [...new Set(messages)];
+  // Already in words with the access number in front (`humanIssues`).
+  const unique = issuesAt(issues, (p) => p[0] === 'accesses');
   return (
     <Panel title="Accesses">
       <label htmlFor={id} className="text-caption text-fg-muted">
@@ -357,8 +380,36 @@ export function AccessEditor({ draft, issues, update }: PartProps) {
         Comma-separated, decimal or 0x hex. Add <span className="font-mono">w</span> for a
         write: <span className="font-mono">100, 104 w, 0x3F80</span>.
       </p>
+      <AccessChips draft={draft} />
       <Messages id={`${id}-err`} messages={unique} />
     </Panel>
+  );
+}
+
+/**
+ * What the access list parses to, live under the box: one chip per access, so a typo
+ * shows up where it is.
+ */
+function AccessChips({ draft }: { draft: VmDraft }) {
+  const parsed = parseAccesses(draft.accesses);
+  if (parsed.length === 0) return null;
+  return (
+    <ol aria-label="Accesses as read" className="flex flex-wrap gap-1">
+      {parsed.map((access, i) => {
+        const bad = Number.isNaN(access.va) || access.op === 'invalid';
+        return (
+          <li
+            key={i}
+            className={cn(
+              'text-caption rounded border px-1.5 font-mono',
+              bad ? 'border-state-error text-state-error font-semibold' : 'border-border',
+            )}
+          >
+            {bad ? `${i + 1}: ?` : `${access.va}${access.op === 'write' ? ' w' : ''}`}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -378,7 +429,7 @@ export function VmEditor({ input, onChange }: VmEditorProps) {
       setIssues([]);
       onChange(result.value);
     } else {
-      setIssues(result.issues);
+      setIssues(humanIssues(result.issues, next));
     }
   };
 
