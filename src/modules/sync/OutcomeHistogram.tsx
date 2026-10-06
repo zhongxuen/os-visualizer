@@ -14,7 +14,9 @@ import { explorationSummary, histogramRows, type HistogramRow } from './adapters
  * pick order) into the stepper as a manual schedule.
  *
  * The bars carry their verdict in words and their count as text; the table view holds
- * the same numbers.
+ * the same numbers. Each bar grows once when it first appears; "Load one" loads the
+ * group's interleaving and plays it from the start, so the schedule fills in tick by
+ * tick.
  */
 
 const VERDICT_STYLE: Record<string, string> = {
@@ -67,8 +69,13 @@ export function OutcomeHistogram({
               aria-hidden="true"
             >
               <div
+                data-bar=""
                 className={cn(
-                  'bg-fg-muted/40 h-full rounded border-2',
+                  'bg-fg-muted/40 h-full origin-left rounded border-2',
+                  // Grows once, as the bar first appears (§7.2.6): a CSS transition from
+                  // its starting style, so no script and no keyframe. Reduced motion
+                  // collapses it with every other transition.
+                  'transition-transform duration-(--dur-3) ease-(--ease-out) starting:scale-x-0',
                   VERDICT_STYLE[row.verdict],
                 )}
                 style={{ width: `${Math.max(row.share * 100, 1.5)}%` }}

@@ -114,3 +114,125 @@ export function explorationSummary(exploration: Exploration): string {
   );
   return `${total} ${total === 1 ? 'interleaving' : 'interleavings'}: ${parts.join('; ')}.`;
 }
+
+/** A store that overwrote another thread's update, as MemoryView strikes it through. */
+export interface LostUpdate {
+  var: string;
+  /** The value that was overwritten: the other thread's update. */
+  lost: number;
+  /** The value written over it. */
+  value: number;
+  /** The thread whose stale store wiped the update out. */
+  by: number;
+  /** The thread whose update was lost, when a store by it is on record. */
+  victim: number | null;
+  /** The tick of the overwriting store. */
+  tick: number;
+}
+
+/**
+ * For each shared variable whose latest store, up to `tick`, lost an update (the core
+ * marks it `lost`, rule `sync.lost`): the value it overwrote and who did it. The mark
+ * stays until the next store to that variable, so a paused frame and the end of the run
+ * still show it (§6.1 rule 4).
+ */
+export function lostUpdatesAt(
+  program: Program,
+  run: SyncRun,
+  tick: number,
+): Record<string, LostUpdate> {
+  const found: Record<string, LostUpdate> = {};
+  const lastWriter: Record<string, number> = {};
+  let before: SyncSnapshot | undefined;
+  for (const event of run.events) {
+    if (event.tick > tick) break;
+    if (
+      event.kind === 'sync.store' &&
+      event.thread !== undefined &&
+      event.op !== undefined
+    ) {
+      const op = program.threads[event.thread]?.ops[event.op];
+      if (op && op.op === 'store') {
+        if (event.lost) {
+          found[op.var] = {
+            var: op.var,
+            lost: before?.vars[op.var] ?? 0,
+            value: event.state.vars[op.var] ?? 0,
+            by: event.thread,
+            victim: lastWriter[op.var] ?? null,
+            tick: event.tick,
+          };
+        } else {
+          delete found[op.var];
+        }
+        lastWriter[op.var] = event.thread;
+      }
+    }
+    before = event.state;
+  }
+  return found;
+}
+
+/**
+ * The rule that decided a step, for the inspector's "Rule used" chip (G5), or `null` for
+ * an op that follows from the program alone.
+ */
+export function ruleForEvent(event: SyncEvent | undefined): string | null {
+  if (!event) return null;
+  switch (event.kind) {
+    case 'sync.store':
+      return event.lost ? 'sync.lost' : null;
+    case 'sync.lock':
+    case 'sync.spin':
+      return 'sync.tas';
+    case 'sync.block':
+      return 'sync.sem.value';
+    case 'sync.signal':
+      return 'sync.sem.signal';
+    case 'sync.stuck':
+      return 'sync.stuck';
+    case 'sync.invalid':
+      return 'sync.manual';
+    case 'sync.error':
+      return 'sync.unlock.owner';
+    case 'sync.limit':
+      return 'sync.limit';
+    default:
+      return null;
+  }
+}
+
+/**
+ * "Try this next" on the end-of-run card (G16): for each preset, the one that contrasts
+ * with it, and why.
+ */
+export const TRY_NEXT: Record<string, { preset: string; why: string }> = {
+  'counter-race': {
+    preset: 'counter-mutex',
+    why: 'The same two increments inside a lock: every interleaving now ends at 2.',
+  },
+  'counter-mutex': {
+    preset: 'forgotten-unlock',
+    why: 'Leave out one unlock and the second thread can wait forever.',
+  },
+  'forgotten-unlock': {
+    preset: 'lock-order',
+    why: 'Two locks taken in opposite orders: a real cycle, a deadlock.',
+  },
+  'lock-order': {
+    preset: 'prodcons-1',
+    why: 'Semaphores let threads sleep until there is work, instead of spinning.',
+  },
+  'prodcons-1': {
+    preset: 'prodcons-broken',
+    why: 'Take the mutex before waiting, and producer and consumer block each other.',
+  },
+  'prodcons-2': {
+    preset: 'prodcons-broken',
+    why: 'Take the mutex before waiting, and producer and consumer block each other.',
+  },
+  'prodcons-broken': {
+    preset: 'counter-race',
+    why: 'Back to the start: two threads and one counter, no lock at all.',
+  },
+};
