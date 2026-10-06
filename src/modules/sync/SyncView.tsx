@@ -1,11 +1,11 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Term } from '@/components/glossary';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
 import { RulesPanel, ruleUsed, StepInspector } from '@/components/inspector';
-import { Walkthrough } from '@/components/lesson/Walkthrough';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
 import { useShareState } from '@/components/state/useShareState';
 import { isTypingTarget } from '@/components/timeline/keymap';
@@ -13,7 +13,6 @@ import { PhaseStepper } from '@/components/timeline/PhaseStepper';
 import { PlaybackBar } from '@/components/timeline/PlaybackBar';
 import { StepCaption } from '@/components/timeline/StepCaption';
 import { Button } from '@/components/timeline/ui/Button';
-import SyncLesson from '@/content/lessons/sync.mdx';
 import { createRegistry } from '@/core/citations/registry';
 import { deadlockCitations } from '@/core/deadlock/citations';
 import { TICK_MS } from '@/core/events/builder';
@@ -45,6 +44,12 @@ import { ScheduleBar } from './ScheduleBar';
 import { MODULE_SHORTCUTS, threadForKey } from './shortcuts';
 import { ThreadColumns } from './ThreadColumns';
 import { useTickRun } from './useTickRun';
+
+/** Guided mode's lesson: client-only, its own chunk, out of first-load JS. */
+const GuidedLesson = dynamic(() => import('./GuidedLesson'), {
+  ssr: false,
+  loading: () => <p className="text-fg-muted text-small">Loading the lesson…</p>,
+});
 
 // `ostep.32.3` (deadlock bugs) is registered by the deadlock module.
 const CITATIONS = createRegistry([
@@ -292,9 +297,8 @@ export function SyncView() {
       >
         <div className="flex flex-col gap-6">
           {mode === 'walkthrough' ? (
-            <Walkthrough
+            <GuidedLesson
               lesson={LESSON}
-              Content={SyncLesson}
               store={store}
               unit="tick"
               examples={examples}

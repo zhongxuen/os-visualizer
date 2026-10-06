@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useMemo, useState, type ReactNode } from 'react';
 
 import { FrameStrip } from '@/components/blocks/FrameStrip';
@@ -8,7 +9,6 @@ import { Term } from '@/components/glossary/Term';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
 import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { ruleUsed, StepInspector } from '@/components/inspector/StepInspector';
-import { Walkthrough } from '@/components/lesson/Walkthrough';
 import { Flash } from '@/components/motion/Flash';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
 import { useShareState } from '@/components/state/useShareState';
@@ -16,7 +16,6 @@ import { PhaseStepper } from '@/components/timeline/PhaseStepper';
 import { PlaybackBar } from '@/components/timeline/PlaybackBar';
 import { StepCaption } from '@/components/timeline/StepCaption';
 import { Button } from '@/components/timeline/ui/Button';
-import ReplacementLesson from '@/content/lessons/replacement.mdx';
 import { createRegistry } from '@/core/citations/registry';
 import { replaceCitations } from '@/core/replace/citations';
 import { allCurves } from '@/core/replace/curve';
@@ -59,6 +58,12 @@ import { activeExample, LESSON, LESSON_CHECKPOINTS, LESSON_EXAMPLES } from './le
 import { PolicyState } from './PolicyState';
 import { PolicyTabs } from './PolicyTabs';
 import { useStepRun } from './useStepRun';
+
+/** Guided mode's lesson: client-only, its own chunk, out of first-load JS. */
+const GuidedLesson = dynamic(() => import('./GuidedLesson'), {
+  ssr: false,
+  loading: () => <p className="text-fg-muted text-small">Loading the lesson…</p>,
+});
 
 const CITATIONS = createRegistry([replaceCitations]);
 
@@ -271,9 +276,8 @@ export function ReplacementView() {
       >
         <div className="flex flex-col gap-6">
           {mode === 'walkthrough' ? (
-            <Walkthrough
+            <GuidedLesson
               lesson={LESSON}
-              Content={ReplacementLesson}
               store={store}
               unit="step"
               examples={LESSON_EXAMPLES}
