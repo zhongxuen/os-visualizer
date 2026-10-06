@@ -1,6 +1,6 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TICK_MS } from '@/core/events/builder';
 import { timelineFrom } from '@/core/sim/playback';
@@ -13,6 +13,9 @@ import { buildTickRun } from '../timeline/testing';
 import { Checkpoint } from './Checkpoint';
 import { canonicalJson, matchExample } from './examples';
 import { LessonStep } from './LessonStep';
+import { checkpointKey, checkpointsDone } from './progress';
+import { findVisual } from './reveal';
+import { TryIt, tryItLabel } from './TryIt';
 import type { CheckpointSpec, LessonMeta } from './types';
 import { Walkthrough } from './Walkthrough';
 
@@ -45,6 +48,7 @@ function Content() {
     <>
       <LessonStep n={1} title="Part one" example="ex">
         <p>First part.</p>
+        <TryIt at={1}>watch P1 start.</TryIt>
         <Checkpoint id="cp1" />
       </LessonStep>
       <LessonStep n={2} title="Part two">
@@ -76,18 +80,24 @@ function setup() {
   return store;
 }
 
+function card() {
+  return document.querySelector('[data-checkpoint="cp1"]');
+}
+
 beforeEach(() => {
   window.localStorage.removeItem(PROGRESS_KEY);
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
 });
 
 describe('Walkthrough', () => {
   it('shows one part at a time and moves between them', () => {
     setup();
-    expect(screen.getByRole('heading', { name: 'Part one' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Part two' })).toBeNull();
+    expect(screen.getByRole('heading', { name: /Part one$/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /Part two$/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Next part' }));
-    expect(screen.getByRole('heading', { name: 'Part two' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Part two$/ })).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Part 2 of 2');
+    expect(screen.getByText(/^Part 2 of 2 ·/)).toBeInTheDocument();
   });
 
   it('does not hold the timeline before the lesson is used', () => {
@@ -100,6 +110,7 @@ describe('Walkthrough', () => {
     const store = setup();
     fireEvent.click(screen.getByRole('button', { name: 'Load this example' }));
     expect(screen.getByText('(loaded)')).toBeInTheDocument();
+    expect(card()).toHaveAttribute('data-state', 'asking');
 
     act(() => {
       store.getState().play();
@@ -110,29 +121,60 @@ describe('Walkthrough', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Paused for a checkpoint: Which process runs from t = 3?',
     );
+    // The card says so (docs/UIUX.md §7.3).
+    expect(screen.getByText('Paused for this question')).toBeInTheDocument();
+    expect(card()).toHaveAttribute('data-state', 'held');
 
     // Before the hold point nothing is held.
     act(() => store.getState().seek(1 * TICK_MS));
     expect(store.getState().virtualTime).toBe(1 * TICK_MS);
+    expect(screen.queryByText('Paused for this question')).toBeNull();
+  });
+
+  it('asks with answer buttons that wait for the example', () => {
+    setup();
+    expect(card()).toHaveAttribute('data-state', 'idle');
+    expect(screen.getByRole('button', { name: 'P2' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Load it' }));
+    expect(screen.getByRole('button', { name: 'P2' })).toBeEnabled();
+  });
+
+  it('meets a right answer with a tick, the reason, and focus on the result', () => {
+    setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Load this example' }));
+    fireEvent.click(screen.getByRole('button', { name: 'P2' }));
+    expect(screen.getByText('Correct.')).toHaveFocus();
+    expect(screen.getByText('P2 runs: shortest remaining time.')).toBeInTheDocument();
+    expect(card()).toHaveAttribute('data-state', 'correct');
+    expect(readProgress().completed).toContain(checkpointKey('lesson.test', 'cp1'));
   });
 
   it('meets a wrong answer with the right one and the core’s reason, then completes', () => {
     const store = setup();
     fireEvent.click(screen.getByRole('button', { name: 'Load this example' }));
-    const check = screen.getByRole('button', { name: 'Check answer' });
-    expect(check).toBeDisabled();
-
-    fireEvent.click(screen.getByRole('radio', { name: 'P1' }));
-    fireEvent.click(check);
-    expect(screen.getByText('Not quite. The answer is P2.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'P1' }));
+    expect(screen.getByText('Not quite. The answer is P2.')).toHaveFocus();
     expect(screen.getByText('P2 runs: shortest remaining time.')).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /P2/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^P2/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^P1/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(card()).toHaveAttribute('data-state', 'wrong');
 
     // Answered: the timeline is free again, and the lesson is complete.
     act(() => store.getState().seek(5 * TICK_MS));
     expect(store.getState().virtualTime).toBe(5 * TICK_MS);
     expect(readProgress().completed).toContain('lesson.test');
     expect(screen.getByText(/1 of 1 checkpoints · complete/)).toBeInTheDocument();
+  });
+
+  it('“Show the next step” moves one step past the question', () => {
+    const store = setup();
+    fireEvent.click(screen.getByRole('button', { name: 'Load this example' }));
+    fireEvent.click(screen.getByRole('button', { name: 'P2' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show the next step' }));
+    expect(store.getState().virtualTime).toBe(3 * TICK_MS);
   });
 
   it('“Show this moment” seeks to the checkpoint and starts holding there', () => {
@@ -143,11 +185,61 @@ describe('Walkthrough', () => {
     expect(store.getState().virtualTime).toBe(2 * TICK_MS);
   });
 
+  it('counts checkpoints answered on an earlier visit', () => {
+    window.localStorage.setItem(
+      PROGRESS_KEY,
+      JSON.stringify({ v: 1, completed: [checkpointKey('lesson.test', 'cp1')] }),
+    );
+    setup();
+    expect(screen.getByText(/1 of 1 checkpoints/)).toBeInTheDocument();
+    expect(screen.getByText('Answered on an earlier visit')).toBeInTheDocument();
+  });
+
+  it('“Try it” loads the part’s example, then goes to its moment, paused', async () => {
+    const store = setup();
+    act(() => store.getState().seek(4 * TICK_MS));
+    fireEvent.click(screen.getByRole('button', { name: tryItLabel(1, 'tick') }));
+    expect(screen.getByText('(loaded)')).toBeInTheDocument();
+    await waitFor(() => expect(store.getState().virtualTime).toBe(1 * TICK_MS));
+    expect(store.getState().status).not.toBe('playing');
+  });
+
   it('is axe clean', async () => {
     const { container } = render(
       <Harness store={createPlaybackStore(timelineFrom(buildTickRun()))} />,
     );
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('tryItLabel', () => {
+  it('names the moment in the run’s own unit', () => {
+    expect(tryItLabel(3, 'tick')).toBe('Go to t = 3');
+    expect(tryItLabel(3, 'step')).toBe('Go to step 3');
+    expect(tryItLabel('end', 'tick')).toBe('Go to the end');
+    expect(tryItLabel('start', 'step')).toBe('Go to the start');
+  });
+});
+
+describe('checkpointsDone', () => {
+  it('counts kept checkpoints, and a completed lesson as all of them', () => {
+    const ids = ['a', 'b', 'c'];
+    expect(checkpointsDone([], 'lesson.x', ids)).toBe(0);
+    expect(checkpointsDone([checkpointKey('lesson.x', 'b')], 'lesson.x', ids)).toBe(1);
+    expect(checkpointsDone([checkpointKey('lesson.y', 'b')], 'lesson.x', ids)).toBe(0);
+    expect(checkpointsDone(['lesson.x'], 'lesson.x', ids)).toBe(3);
+  });
+});
+
+describe('findVisual', () => {
+  it('prefers a picture the module marked', () => {
+    const root = document.createElement('div');
+    root.setAttribute('data-workspace', '');
+    root.innerHTML =
+      '<section id="lesson"></section><p id="next">caption</p><div id="marked" data-lesson-visual></div>';
+    document.body.append(root);
+    expect(findVisual(document.getElementById('lesson')!)?.id).toBe('marked');
+    root.remove();
   });
 });
 
