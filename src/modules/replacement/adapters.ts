@@ -156,3 +156,166 @@ export function stepHeading(
   const i = event.state.index;
   return `Reference ${i + 1} of ${refString.length} (page ${refString[i]}): ${KIND_NAMES[event.kind]}`;
 }
+
+/* --- U3.4: what the current step adds to the strip, the inspector and the card ----- */
+
+/**
+ * The rule that decided this step (G5), for the "Rule used" chip and the highlighted
+ * entry in the rules panel. `null` when no convention was involved.
+ */
+export function ruleIdFor(event: ReplEvent | undefined, policy: Policy): string | null {
+  if (!event) return null;
+  switch (event.kind) {
+    case 'repl.hit':
+      return policy === 'opt' ? null : `repl.${policy}`;
+    case 'repl.fault':
+      return 'repl.miss.kinds';
+    case 'repl.scan':
+      return 'repl.clock';
+    case 'repl.victim':
+      return policy === 'opt' ? 'repl.opt' : `repl.${policy}`;
+    case 'repl.evict':
+      return 'repl.dirty';
+    case 'repl.load':
+      if (event.evicted === undefined) return 'repl.fill.order';
+      return policy === 'clock' || policy === 'lru' ? `repl.${policy}` : null;
+  }
+}
+
+/**
+ * Why the victim was chosen, in the core's own words: the `repl.victim` label reads
+ * "Evict 7: loaded first (FIFO)." and this returns "loaded first".
+ */
+export function victimReason(event: ReplEvent): string {
+  const match = /^Evict \d+: (.*?)\.?$/.exec(event.label);
+  const reason = match?.[1] ?? event.label;
+  return reason.replace(/\s*\((FIFO|LRU|OPT|Clock)\)$/, '');
+}
+
+/**
+ * The label under each frame on the current step: OPT's look-ahead ("next in 4", R2)
+ * and LRU's last use ("used 3 ago"). FIFO and Clock show their state elsewhere.
+ */
+export function frameNotes(
+  event: ReplEvent,
+  policy: Policy,
+): (string | null)[] | undefined {
+  const { state } = event;
+  if (policy === 'opt' && state.nextUse) {
+    return state.frames.map((page, f) => {
+      if (page === null) return null;
+      const next = state.nextUse![f];
+      return next === null || next === undefined
+        ? 'not needed again'
+        : `next in ${next - state.index}`;
+    });
+  }
+  if (policy === 'lru' && state.lastUse) {
+    return state.frames.map((page, f) => {
+      const last = state.lastUse![f];
+      if (page === null || last === null || last === undefined) return null;
+      const ago = state.index - last;
+      return ago === 0 ? 'used now' : `used ${ago} ago`;
+    });
+  }
+  return undefined;
+}
+
+/**
+ * The strip's columns at `event`, with the current column dressed for the step: the
+ * hit frame, the victim and its reason, the page leaving, and the policy's notes.
+ */
+export function stripColumns(
+  run: ReplRun,
+  refString: readonly number[],
+  event: ReplEvent | undefined,
+  policy: Policy,
+): FrameColumn[] {
+  const columns = columnsAt(run, refString, event);
+  if (!event) return columns;
+  const i = event.state.index;
+  const column: FrameColumn = { ...columns[i]! };
+  if (event.kind === 'repl.hit' && event.frame !== undefined)
+    column.hitFrame = event.frame;
+  if (event.kind === 'repl.victim' && event.frame !== undefined) {
+    column.victim = { frame: event.frame, reason: victimReason(event) };
+  }
+  if (event.kind === 'repl.evict' && event.frame !== undefined) {
+    column.leaving = { frame: event.frame, page: event.page };
+  }
+  const notes = frameNotes(event, policy);
+  if (notes) column.notes = notes;
+  columns[i] = column;
+  return columns;
+}
+
+/** The end-of-run sentence: "FIFO with 3 frames: 9 faults (5 cold, 4 capacity) …". */
+export function resultSentence(
+  policy: Policy,
+  frames: number,
+  totals: ReplCounters,
+  references: number,
+): string {
+  const { faults, cold, hits } = totals;
+  return `${POLICY_NAMES[policy]} with ${frames} ${frames === 1 ? 'frame' : 'frames'}: ${faults} ${faults === 1 ? 'fault' : 'faults'} (${cold} cold, ${faults - cold} capacity) and ${hits} ${hits === 1 ? 'hit' : 'hits'} in ${references} references, a hit rate of ${hitRate(hits, references)}.`;
+}
+
+/** What the end-of-run card offers next: a run that contrasts with this one. */
+export interface TryNextChoice {
+  label: string;
+  why: string;
+  /** A preset to load, or the same string under another policy. */
+  presetId?: string;
+  policy?: Policy;
+}
+
+export function tryNextFor(
+  policy: Policy,
+  refString: readonly number[],
+  beladyString: readonly number[],
+): TryNextChoice {
+  const isBelady =
+    refString.length === beladyString.length &&
+    refString.every((page, i) => page === beladyString[i]);
+  if (isBelady && policy === 'fifo') {
+    return {
+      label: 'Same string, LRU',
+      why: 'LRU is a stack algorithm: a frame more can never cost it a fault.',
+      presetId: 'belady-lru',
+    };
+  }
+  switch (policy) {
+    case 'fifo':
+      return {
+        label: 'LRU on the same string',
+        why: 'FIFO ignores use; LRU keeps what was used recently.',
+        policy: 'lru',
+      };
+    case 'lru':
+      return {
+        label: 'OPT on the same string',
+        why: 'OPT is the yardstick: no policy can fault less.',
+        policy: 'opt',
+      };
+    case 'opt':
+      return {
+        label: 'Clock on the same string',
+        why: 'Clock is what real systems run: LRU’s idea with one bit per frame.',
+        policy: 'clock',
+      };
+    case 'clock':
+      return {
+        label: 'Belady’s anomaly (FIFO)',
+        why: 'A string where one frame more means more faults.',
+        presetId: 'belady',
+      };
+  }
+}
+
+/**
+ * The Belady callout (R3): shown exactly when the larger memory has faulted more often
+ * than the smaller one so far.
+ */
+export function beladyOvertakes(smallFaults: number, largeFaults: number): boolean {
+  return largeFaults > smallFaults;
+}

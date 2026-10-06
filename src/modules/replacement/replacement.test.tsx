@@ -93,13 +93,17 @@ describe('InputPanel', { timeout: 30_000 }, () => {
     const box = screen.getByLabelText(/Pages referenced/);
     await user.clear(box);
     await user.type(box, '1, 2, 99');
-    expect(screen.getByText(/Reference 3: Page must be at most 15/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Reference 3: Page 99 is too big. Pages are whole numbers from 0 to 15.',
+      ),
+    ).toBeInTheDocument();
     expect(seen.at(-1)).toEqual([1, 2, 9]);
     await user.click(screen.getByRole('button', { name: 'Generate' }));
     expect(seen.at(-1)).toHaveLength(30);
     await expectNoAxeViolations(container);
-    expect(refStringMessages({ ...input, refString: [] })).toEqual([
-      'Add at least one reference',
+    expect(refStringMessages('')).toEqual([
+      'Type at least one page number, for example 7 0 1 2.',
     ]);
   });
 });

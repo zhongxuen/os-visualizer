@@ -1,3 +1,6 @@
+import type { ReactNode } from 'react';
+
+import { Ticker } from '@/components/motion/Ticker';
 import type { ReplEvent } from '@/core/replace/events';
 import { POLICY_NAMES, type Policy } from '@/core/replace/input';
 import { cn } from '@/lib/cn';
@@ -5,7 +8,8 @@ import { cn } from '@/lib/cn';
 /**
  * What the policy is looking at right now, frame by frame: FIFO's queue position, LRU's
  * last use, OPT's next use, Clock's use bits and hand. The frame the event is about is
- * marked in text ("this step") as well as with the outline.
+ * marked in text ("this step") as well as with the outline. OPT's next use is a count
+ * down ("in 4") that rolls as the string goes by.
  */
 
 const COLUMN: Record<Policy, string> = {
@@ -15,7 +19,7 @@ const COLUMN: Record<Policy, string> = {
   clock: 'Use bit',
 };
 
-function cell(event: ReplEvent, policy: Policy, frame: number): string {
+function cell(event: ReplEvent, policy: Policy, frame: number): ReactNode {
   const { state } = event;
   const page = state.frames[frame];
   if (page === null || page === undefined) return '—';
@@ -31,7 +35,13 @@ function cell(event: ReplEvent, policy: Policy, frame: number): string {
     }
     case 'opt': {
       const at = state.nextUse?.[frame];
-      return at === null || at === undefined ? 'never' : `reference ${at + 1}`;
+      if (at === null || at === undefined) return 'never';
+      // The look-ahead counts down as the string goes by (§7.2.4).
+      return (
+        <>
+          in <Ticker value={at - state.index} /> (reference {at + 1})
+        </>
+      );
     }
     case 'clock':
       return String(state.useBits?.[frame] ?? 0);
