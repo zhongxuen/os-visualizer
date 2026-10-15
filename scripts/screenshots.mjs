@@ -3,7 +3,7 @@
 //   npm run build && npx next start --port 3100   # in another shell
 //   node scripts/screenshots.mjs [baseUrl]
 //
-// Writes docs/media/<name>.png at 1440 × 900, light theme, Free play, each module at the
+// Writes docs/media/<name>.png at 1440 × 900, light theme, Sandbox, each module at the
 // end of a preset's run.
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -43,7 +43,7 @@ for (const shot of SHOTS) {
       if (await page.getByText(/^Loaded preset:/).isVisible()) break;
       await page.waitForTimeout(200);
     }
-    await page.getByRole('radio', { name: 'Free play' }).check({ force: true });
+    await page.getByRole('radio', { name: 'Sandbox' }).check({ force: true });
     await page.locator('body').click({ position: { x: 1, y: 1 } });
     await page.keyboard.press('End');
     await page.waitForTimeout(300);

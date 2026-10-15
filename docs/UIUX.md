@@ -1,7 +1,7 @@
 # OS Visualizer — UI/UX and motion plan
 
 Written: 2026-10-03 · Revised: 2026-10-05 (retrofit, see below)
-Status: **[planned]**
+Status: **[done]** 2026-10-15 (U5.1 and U5.2; results in §10)
 Applies to: every route in `src/app`, every shared component in `src/components`, every
 module in `src/modules`. Core (`src/core`) is not touched by this plan, with two
 exceptions: the home page hero reads one scheduling run from it at build time (§7.1),
@@ -862,7 +862,29 @@ horizontal page scroll anywhere, and no console errors apart from the 404 status
 | Reduced motion: a forward step leaves nothing animating | `scheduling-ux`, `compare-ux`, `translation`, `replacement`, `deadlock-ux` and `sync` specs |
 | No horizontal scroll at 375/390 px | `shell.spec.ts` › phone, plus the U5.1 walk |
 
-### 10.1 §2 items
+### 10.1 Second pass (U5.2)
+
+A fresh beginner walk at 1366×850 with a clean `localStorage`: `/`, then "Start with CPU
+scheduling", then every module in the suggested order, in Guided mode. Each lesson part
+was read with its example loaded and played to the end, along with the end-of-run card
+and its next-module link. Every module opened in Guided on the first visit, the
+checkpoints held the timeline ("Paused for this question"), and every end-of-run card
+named the result and offered "Try this next" and the next module.
+
+| # | Where | Pain point | Status |
+|---|---|---|---|
+| Q1 | Every module, Guided, first open | Part 1's text describes its own example (scheduling: "P1 arrives at t = 0 needing 16 ticks", FCFS), but the picture shows the module's default preset (SJF on 6, 8, 7, 3) until "Load this example" is pressed. Text and picture disagree on the very first screen. | **Partly fixed:** the example bar now says "The picture shows a different input. Load this example to follow along." whenever the part's example isn't loaded (`LessonStep.tsx`). Loading part 1's example automatically is a follow-up: the lesson tests pin down today's behaviour (nothing loads or holds until the learner acts), so it is a design change, not a QA fix. |
+| Q2 | Guided, desktop | The lesson column sits above the picture, so at 850 px tall the Gantt chart, frames or graph are below the fold. Pressing Play visibly changes only the inspector. "Try it" and checkpoint buttons scroll the picture into view; Play doesn't. | Follow-up (scroll the picture into view on the first Play in Guided, or put the lesson beside the picture). |
+| Q3 | Page Replacement and Deadlock intros, Clock note, wait-for graph caption | Self-closing `<Term id>` rendered the glossary headword mid-sentence: "Serve a Reference string… every Victim chosen", "a Resource-allocation graph", "a Safe state", "a Use bit", "the Wait-for graph". | **Fixed:** lowercase text inside each `<Term>`. |
+| Q4 | Deadlock, desktop | The tab's one-line intro ("Detection: what's happening now…") showed twice: under the tabs and above the picture. | **Fixed:** the copy under the tabs is hidden at `lg`, where both columns are visible. It stays on phone and tablet, where Setup is a separate tab or drawer. |
+| Q5 | Compare, Page Replacement, Guided | After "Load this example", the Presets dropdown still names a different preset (Compare: "FCFS vs SJF vs SRTF (convoy)" while the lesson's "SJF vs RR" is loaded). The status line under it is right. | Follow-up (show "Lesson example" in the dropdown while one is loaded). |
+| Q6 | Page Replacement | The inspector counts references ("Reference 6 of 11") and the transport counts steps ("step 9 / 20"). Both are right, but a beginner sees two different counters. | Follow-up (name the unit in the inspector: "reference 6 of 11 · step 9"). |
+| Q7 | `scripts/screenshots.mjs` | Still clicked the "Free play" radio, which U2.1 renamed "Sandbox", so the README screenshots couldn't be retaken. | **Fixed.** |
+| Q8 | `README.md` | Named the modes "Walkthrough" and "Free play". The Sync screenshot's alt text promised the interleaving histogram, which is below the fold. | **Fixed:** "Guided" and "Sandbox", with the glossary mentioned; alt text corrected. Every other claim checked against the site (presets, files, scripts, test coverage). |
+
+README screenshots retaken from the new build (B13, fixed): `docs/media/{home,scheduling,translation,replacement,deadlock,sync}.png`.
+
+### 10.2 §2 items
 
 | # | Status | Evidence |
 |---|---|---|
@@ -925,7 +947,7 @@ horizontal page scroll anywhere, and no console errors apart from the 404 status
 | A2 | done | `shell.spec.ts` › 404 lists modules and `/learn` |
 | A3 | done | `a11y.spec.ts` › `/demo` noindex; `shell.spec.ts` › not linked |
 
-### 10.2 §3 bugs
+### 10.3 §3 bugs
 
 | # | Status | Evidence |
 |---|---|---|
@@ -937,9 +959,9 @@ horizontal page scroll anywhere, and no console errors apart from the 404 status
 | B10 | fixed | Heading-only links stretched over the card (`ModuleGrid.tsx`) |
 | B11 | fixed | `workspace.spec.ts` › transport hides while a field has focus |
 | B12 | not done | Optional dev-only nicety; production is unaffected. |
-| B13 | open → U5.2 | README screenshots |
+| B13 | fixed | Retaken in U5.2 (§10.1) |
 
-### 10.3 §7 animations
+### 10.4 §7 animations
 
 | Where | Status | Notes |
 |---|---|---|
@@ -961,7 +983,7 @@ horizontal page scroll anywhere, and no console errors apart from the 404 status
 | 7.2.6 PC arrow, blocked pulse, ticker values, lost-update strike, lock owner FLIP, histogram bars | done | `sync.spec.ts` |
 | 7.3 Checkpoint cards, "Try it" scrolls into view | done | `learn.spec.ts` › checkpoint by keyboard |
 
-### 10.4 First-load JS
+### 10.5 First-load JS
 
 From `npm run perf:bundles` (gzipped, every script and JS preload in the prerendered
 HTML, deduplicated):
@@ -987,9 +1009,10 @@ workspace split so that Sandbox-only and lesson code load on demand. That is a
 structural change, left as a follow-up. `/scheduling` has 1.2 KB of headroom under the
 250 KB repo budget, so the next feature there has to pay for itself.
 
-### 10.5 Follow-ups
+### 10.6 Follow-ups
 
-- Split the module workspace to get module routes toward 170 KB (§10.4).
+- Split the module workspace to get module routes toward 170 KB (§10.5).
+- Q1, Q2, Q5 and Q6 from the second pass (§10.1).
 - The VPN ghost copy (§7.2.3) and the header shrinking on scroll (§7.1).
 - The per-process table scrolls sideways at tablet width (1024 px).
 - On the deadlock graph, the two crossing cycle edges' "cycle" labels overlap in the middle

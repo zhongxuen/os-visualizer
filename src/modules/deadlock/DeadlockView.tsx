@@ -386,7 +386,8 @@ export function DeadlockView() {
             if (v !== view) setInput({ view: v });
           }}
         />
-        <p className="text-caption text-fg-secondary">{VIEW_INTROS[view]}</p>
+        {/* Desktop shows the same line above the picture, beside this column. */}
+        <p className="text-caption text-fg-secondary lg:hidden">{VIEW_INTROS[view]}</p>
       </div>
       {view === 'graph' ? graphInputs : bankersInputs}
       {statusLine}
@@ -523,9 +524,10 @@ export function DeadlockView() {
         title="Deadlock"
         intro={
           <>
-            Build a <Term id="resource-allocation-graph" /> and watch the system decide
-            whether it is <Term id="deadlock">deadlocked</Term>, then recover. Or run
-            Banker’s algorithm and watch it keep the system in a <Term id="safe-state" />.{' '}
+            Build a <Term id="resource-allocation-graph">resource-allocation graph</Term>{' '}
+            and watch the system decide whether it is{' '}
+            <Term id="deadlock">deadlocked</Term>, then recover. Or run Banker’s algorithm
+            and watch it keep the system in a <Term id="safe-state">safe state</Term>.{' '}
             <span data-testid="thread-names">
               Silberschatz calls the waiting parties <Term id="thread">threads</Term>, T0,
               T1, …, drawn here as rounded squares: they are not the processes P1, P2, …

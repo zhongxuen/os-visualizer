@@ -15,17 +15,19 @@ Concepts_, 10th edition), not a real kernel, and the product says so on every pa
 | #   | Module                                         | What you step through                                                                                                                                           |
 | --- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | [CPU Scheduling](src/modules/scheduling)       | FCFS, SJF, SRTF, Priority (with aging), Round Robin and MLFQ, with I/O bursts and a context-switch cost. Waiting, turnaround and response time per process.    |
-| 2   | [Compare](src/modules/compare)                 | One workload under two to four policies on a shared time axis, with the best value in each metric marked and a generated "Why?" line.                           |
+| 2   | [Compare](src/modules/compare)                 | One workload under two to four policies on a shared time axis, with the best value in each metric marked (ties as ties) and a generated "Why?" headline.                           |
 | 3   | [Address Translation](src/modules/translation) | Virtual address → VPN and offset → TLB → one- or two-level page-table walk → protection → physical address, and a page-table size calculator.                   |
 | 4   | [Page Replacement](src/modules/replacement)    | FIFO, LRU, OPT and Clock over a reference string, the faults-against-frames curve for every policy, and Belady's anomaly.                                       |
 | 5   | [Deadlock](src/modules/deadlock)               | A resource-allocation graph, built with a form or by dragging; cycle detection, the detection algorithm, Banker's safety and request algorithms, and recovery. |
 | 6   | [Synchronisation](src/modules/sync)            | Threads as load/add/store micro-ops: pick the interleaving by hand and lose an update, fix it with a test-and-set mutex, then producer/consumer with semaphores. |
 
-Every module has a **Walkthrough** (a lesson with checkpoints that ask you to predict the
-next step, listed at `/learn`) and **Free play**. Every input is editable, every preset
-reproduces a textbook situation, and any run is a link (`?s=`).
+Every module has two modes. **Guided** is a short lesson with checkpoints that ask you to
+predict the next step; the lessons form a learning path at `/learn`. **Sandbox** is your
+own input. Every input is editable, every preset reproduces a textbook situation, and
+any run is a link (`?s=`). Words like _quantum_, _VPN_ or _safe state_ carry their
+definition on hover, focus or tap, and `/learn/glossary` lists them all.
 
-![Synchronisation: a lost update on a shared counter, and the count of every interleaving](docs/media/sync.png)
+![Synchronisation: two threads race on a shared counter and the lost update is struck through](docs/media/sync.png)
 
 <table>
   <tr>

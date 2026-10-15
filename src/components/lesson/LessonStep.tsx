@@ -67,6 +67,11 @@ export function ExampleBar({ id }: { id: string }) {
         <span className="text-fg font-medium">{example.title}</span>
         {loaded ? <span className="text-fg-muted"> (loaded)</span> : null}
       </p>
+      {loaded ? null : (
+        <p className="text-caption text-fg-secondary basis-full sm:order-last">
+          The picture shows a different input. Load this example to follow along.
+        </p>
+      )}
       <Button
         variant={loaded ? 'secondary' : 'primary'}
         size="sm"

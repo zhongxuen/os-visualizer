@@ -260,9 +260,10 @@ export function ReplacementView() {
         title="Page Replacement"
         intro={
           <>
-            Serve a <Term id="reference-string" /> with a few{' '}
+            Serve a <Term id="reference-string">reference string</Term> with a few{' '}
             <Term id="frame">frames</Term> of memory under FIFO, LRU, OPT or Clock, one
-            reference at a time, with the reason for every <Term id="victim" /> chosen.
+            reference at a time, with the reason for every <Term id="victim">victim</Term>{' '}
+            chosen.
           </>
         }
         mode={mode}
@@ -367,8 +368,8 @@ export function ReplacementView() {
               {policy === 'clock' && event ? (
                 <div className="flex flex-col gap-1">
                   <p className="text-small">
-                    Each frame has a <Term id="use-bit" />. The hand sweeps round the ring
-                    looking for a 0.
+                    Each frame has a <Term id="use-bit">use bit</Term>. The hand sweeps
+                    round the ring looking for a 0.
                   </p>
                   <ClockRing state={event.state} focus={event.frame} />
                 </div>

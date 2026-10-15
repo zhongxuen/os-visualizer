@@ -25,7 +25,8 @@ export function DetectView({
       <p className="text-caption text-fg-muted">
         {cycle ? (
           <>
-            Cycle detection on the <Term id="wait-for-graph" /> (OSC10 §8.7.1).
+            Cycle detection on the <Term id="wait-for-graph">wait-for graph</Term> (OSC10
+            §8.7.1).
           </>
         ) : state.algorithm === 'recover' ? (
           'Recovery (OSC10 §8.8): the graph after the action, before detection runs again.'
