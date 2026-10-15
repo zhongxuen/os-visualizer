@@ -147,14 +147,20 @@ const KIND_NAMES: Record<ReplEvent['kind'], string> = {
   'repl.load': 'load',
 };
 
-/** The inspector heading for an event. */
+/**
+ * The inspector heading for an event. It names both units (Q6): the reference being
+ * served, which is what the strip counts, and the step, which is what the transport
+ * counts ("step 9 / 20"), since one reference can take several steps (fault, victim,
+ * evict, load).
+ */
 export function stepHeading(
   event: ReplEvent | undefined,
   refString: readonly number[],
+  step: number,
 ): string {
   if (!event) return 'This step';
   const i = event.state.index;
-  return `Reference ${i + 1} of ${refString.length} (page ${refString[i]}): ${KIND_NAMES[event.kind]}`;
+  return `Reference ${i + 1} of ${refString.length} · step ${step} (page ${refString[i]}): ${KIND_NAMES[event.kind]}`;
 }
 
 /* --- U3.4: what the current step adds to the strip, the inspector and the card ----- */

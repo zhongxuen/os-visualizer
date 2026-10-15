@@ -58,25 +58,47 @@ function Content() {
   );
 }
 
-function Harness({ store }: { store: ReturnType<typeof createPlaybackStore> }) {
+function Harness({
+  store,
+  autoLoad = false,
+}: {
+  store: ReturnType<typeof createPlaybackStore>;
+  autoLoad?: boolean;
+}) {
   const [active, setActive] = useState<string | null>(null);
+  const [loads, setLoads] = useState(0);
   return (
-    <Walkthrough
-      lesson={LESSON}
-      Content={Content}
-      store={store}
-      unit="tick"
-      examples={[{ id: 'ex', title: 'The example' }]}
-      activeExample={active}
-      onLoadExample={setActive}
-      checkpoints={CHECKPOINTS}
-    />
+    <>
+      <p data-testid="loads">{loads}</p>
+      <button type="button" onClick={() => setActive(null)}>
+        Edit the input
+      </button>
+      <Walkthrough
+        lesson={LESSON}
+        Content={Content}
+        store={store}
+        unit="tick"
+        examples={[{ id: 'ex', title: 'The example' }]}
+        activeExample={active}
+        onLoadExample={(id) => {
+          setActive(id);
+          setLoads((n) => n + 1);
+        }}
+        checkpoints={CHECKPOINTS}
+        autoLoad={autoLoad}
+      />
+    </>
   );
 }
 
-function setup() {
+/**
+ * Most tests drive the lesson by hand, as it works when it may not load examples itself
+ * (a `?s=` link or saved Sandbox work: `lessonMayLoad`). `autoLoad` is Guided mode's
+ * usual case, where opening a part loads its example (Q1).
+ */
+function setup({ autoLoad = false }: { autoLoad?: boolean } = {}) {
   const store = createPlaybackStore(timelineFrom(buildTickRun()));
-  render(<Harness store={store} />);
+  render(<Harness store={store} autoLoad={autoLoad} />);
   return store;
 }
 
@@ -100,8 +122,11 @@ describe('Walkthrough', () => {
     expect(screen.getByText(/^Part 2 of 2 ·/)).toBeInTheDocument();
   });
 
-  it('does not hold the timeline before the lesson is used', () => {
+  it('without auto-load, neither loads nor holds before the lesson is used', () => {
     const store = setup();
+    expect(screen.getByRole('button', { name: 'Load this example' })).toBeInTheDocument();
+    expect(screen.getByText(/The picture shows a different input/)).toBeInTheDocument();
+    expect(screen.getByTestId('loads')).toHaveTextContent('0');
     act(() => store.getState().seek(5 * TICK_MS));
     expect(store.getState().virtualTime).toBe(5 * TICK_MS);
   });
@@ -131,7 +156,7 @@ describe('Walkthrough', () => {
     expect(screen.queryByText('Paused for this question')).toBeNull();
   });
 
-  it('asks with answer buttons that wait for the example', () => {
+  it('without auto-load, asks with answer buttons that wait for the example', () => {
     setup();
     expect(card()).toHaveAttribute('data-state', 'idle');
     expect(screen.getByRole('button', { name: 'P2' })).toBeDisabled();
@@ -209,6 +234,67 @@ describe('Walkthrough', () => {
       <Harness store={createPlaybackStore(timelineFrom(buildTickRun()))} />,
     );
     await expectNoAxeViolations(container);
+  });
+});
+
+describe('Walkthrough in Guided mode (auto-load, Q1 and Q2)', () => {
+  it('loads the part’s example as the part opens, and holds at its checkpoint', () => {
+    const store = setup({ autoLoad: true });
+    expect(screen.getByText('(loaded)')).toBeInTheDocument();
+    expect(screen.queryByText(/The picture shows a different input/)).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Reload this example' }),
+    ).toBeInTheDocument();
+    expect(card()).toHaveAttribute('data-state', 'asking');
+    act(() => store.getState().seek(5 * TICK_MS));
+    expect(store.getState().virtualTime).toBe(2 * TICK_MS);
+  });
+
+  it('loads once per opening, so the learner’s own change is not undone', () => {
+    setup({ autoLoad: true });
+    expect(screen.getByTestId('loads')).toHaveTextContent('1');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit the input' }));
+    expect(screen.queryByText('(loaded)')).toBeNull();
+    expect(screen.getByTestId('loads')).toHaveTextContent('1');
+    // Opening the part again is the learner acting: it loads again.
+    fireEvent.click(screen.getByRole('button', { name: 'Next part' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Previous part' }));
+    expect(screen.getByTestId('loads')).toHaveTextContent('2');
+    expect(screen.getByText('(loaded)')).toBeInTheDocument();
+  });
+
+  it('brings the picture into view on the first Play only', () => {
+    const store = setup({ autoLoad: true });
+    const scroll = vi.mocked(window.scrollTo);
+    scroll.mockClear();
+    act(() => store.getState().play());
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(scroll.mock.calls[0]![0]).toMatchObject({ behavior: 'smooth' });
+    act(() => {
+      store.getState().pause();
+      store.getState().seek(0);
+      store.getState().play();
+    });
+    expect(scroll).toHaveBeenCalledTimes(1);
+  });
+
+  it('jumps rather than glides under reduced motion', () => {
+    const matchMedia = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('reduce'),
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    })) as unknown as typeof window.matchMedia;
+    try {
+      const store = setup({ autoLoad: true });
+      const scroll = vi.mocked(window.scrollTo);
+      scroll.mockClear();
+      act(() => store.getState().play());
+      expect(scroll.mock.calls[0]![0]).toMatchObject({ behavior: 'auto' });
+    } finally {
+      window.matchMedia = matchMedia;
+    }
   });
 });
 

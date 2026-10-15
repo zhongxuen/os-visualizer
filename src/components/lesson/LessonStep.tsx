@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useId, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, type ReactNode } from 'react';
 
 import { Button } from '../timeline/ui/Button';
 import { useLesson } from './LessonContext';
@@ -15,7 +15,8 @@ export function usePartExample(): string | undefined {
 /**
  * One part of a walkthrough: a heading, about 150 words, and the example it uses. Only
  * the part on screen renders, so its checkpoints are the only ones that can hold the
- * timeline.
+ * timeline. Opening it loads its example when the walkthrough may (Q1); otherwise the
+ * example bar offers "Load this example".
  */
 export function LessonStep({
   n,
@@ -32,7 +33,12 @@ export function LessonStep({
 }) {
   const lesson = useLesson();
   const headingId = useId();
-  if (lesson.part !== n) return null;
+  const open = lesson.part === n;
+  const { openPart } = lesson;
+  useEffect(() => {
+    if (open) openPart(n, example);
+  }, [open, n, example, openPart]);
+  if (!open) return null;
 
   return (
     <PartContext value={{ example }}>

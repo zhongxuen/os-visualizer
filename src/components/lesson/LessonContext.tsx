@@ -37,6 +37,11 @@ export interface LessonContextValue {
   pending: string | null;
   /** Scroll the module's picture into view (see `reveal.ts`). */
   reveal(): void;
+  /**
+   * A part came on screen: load its example if the walkthrough may (Q1). Called by
+   * `LessonStep`; once per opening of a part.
+   */
+  openPart(n: number, example: string | undefined): void;
 }
 
 export const LessonContext = createContext<LessonContextValue | null>(null);

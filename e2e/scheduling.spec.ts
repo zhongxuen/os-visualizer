@@ -1,5 +1,16 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+import { lessonSettled } from './routes';
+
+/** The step a `?s=` link holds (base64url JSON). */
+function linkedStep(page: Page): Promise<number | null> {
+  return page.evaluate(() => {
+    const s = new URL(window.location.href).searchParams.get('s');
+    if (!s) return null;
+    return JSON.parse(atob(s.replace(/-/g, '+').replace(/_/g, '/'))).step as number;
+  });
+}
 
 test('scheduling: OSC10 SJF preset, keyboard to the end, average waiting 7, axe clean', async ({
   page,
@@ -11,6 +22,7 @@ test('scheduling: OSC10 SJF preset, keyboard to the end, average waiting 7, axe 
 
   await page.goto('/scheduling');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('CPU Scheduling');
+  await lessonSettled(page);
 
   // Keyboard only: choose the preset, press Load, then End.
   await page.getByLabel('Preset', { exact: true }).focus();
@@ -45,6 +57,7 @@ test('scheduling: OSC10 SJF preset, keyboard to the end, average waiting 7, axe 
 
 test('scheduling: the URL reproduces the workload, policy and step', async ({ page }) => {
   await page.goto('/scheduling');
+  await lessonSettled(page);
   // Retry until hydrated: a change made before React attaches is lost.
   await expect(async () => {
     await page.getByLabel('Preset', { exact: true }).selectOption('osc-rr');
@@ -56,6 +69,8 @@ test('scheduling: the URL reproduces the workload, policy and step', async ({ pa
   await page.keyboard.press('End');
   await expect(page.getByTestId('avg-waiting')).toHaveText('5.67');
   await expect(page).toHaveURL(/\?s=/);
+  // The link is written after a short pause; wait for the one holding this step.
+  await expect.poll(() => linkedStep(page)).toBe(30);
 
   const url = page.url();
   await page.goto('about:blank');

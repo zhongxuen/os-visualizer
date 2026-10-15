@@ -7,6 +7,8 @@ import { Term } from '@/components/glossary';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
 import { RulesPanel, ruleUsed, StepInspector } from '@/components/inspector';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
+import { useLessonAutoLoad } from '@/components/lesson/autoLoad';
+import { LESSON_PRESET, presetSelect } from '@/components/lesson/presetOption';
 import { useShareState } from '@/components/state/useShareState';
 import { isTypingTarget } from '@/components/timeline/keymap';
 import { PhaseStepper } from '@/components/timeline/PhaseStepper';
@@ -65,7 +67,7 @@ const CITATIONS = createRegistry([
  */
 export function SyncView() {
   const share = useShareState(SYNC_SHARE_STATE);
-  const { state, setState } = share;
+  const { state, setState, ready } = share;
   const input = state.input as SyncInput;
   const { program, schedule } = input;
   const [mode, setMode] = useState<ModuleMode>('walkthrough');
@@ -166,7 +168,30 @@ export function SyncView() {
     );
   };
 
-  const preset = SYNC_PRESETS.find((p) => p.id === presetId) ?? DEFAULT_PRESET;
+  const exampleId = activeExample(input);
+  const presets = presetSelect(
+    SYNC_PRESETS.map((p) => ({ value: p.id, label: p.title })),
+    presetId,
+    exampleId,
+    DEFAULT_PRESET.id,
+  );
+  const lessonExample = presets.lesson
+    ? LESSON_EXAMPLES.find((e) => e.id === exampleId)
+    : undefined;
+  const preset = SYNC_PRESETS.find((p) => p.id === presets.value) ?? DEFAULT_PRESET;
+  const lessonAuto = useLessonAutoLoad({
+    ready,
+    linked: share.linked,
+    defaults: SYNC_SHARE_STATE.defaults,
+    input: state.input,
+  });
+  const loadExample = (id: string) => {
+    lessonAuto.lessonLoaded();
+    const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
+    setPresetId(LESSON_PRESET);
+    setInput(example.input);
+    setStatus(`Loaded example: ${example.title}`);
+  };
 
   const loadPreset = (id: string) => {
     const chosen = SYNC_PRESETS.find((p) => p.id === id) ?? DEFAULT_PRESET;
@@ -185,12 +210,20 @@ export function SyncView() {
       <Panel title="Presets">
         <SelectField
           label="Preset"
-          value={presetId}
-          options={SYNC_PRESETS.map((p) => ({ value: p.id, label: p.title }))}
+          value={presets.value}
+          options={presets.options}
           onChange={setPresetId}
         />
-        <p className="text-caption text-fg-muted">{preset.summary}</p>
-        <Button variant="primary" size="sm" onClick={() => loadPreset(preset.id)}>
+        <p className="text-caption text-fg-muted">
+          {lessonExample ? `From the lesson: ${lessonExample.title}.` : preset.summary}
+        </p>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() =>
+            lessonExample ? loadExample(lessonExample.id) : loadPreset(preset.id)
+          }
+        >
           Load preset
         </Button>
       </Panel>
@@ -302,13 +335,10 @@ export function SyncView() {
               store={store}
               unit="tick"
               examples={examples}
-              activeExample={activeExample(input)}
-              onLoadExample={(id) => {
-                const example = examples.find((e) => e.id === id)!;
-                setInput(example.input);
-                setStatus(`Loaded example: ${example.title}`);
-              }}
+              activeExample={exampleId}
+              onLoadExample={loadExample}
               checkpoints={LESSON_CHECKPOINTS}
+              autoLoad={lessonAuto.autoLoad}
             />
           ) : null}
           {mode === 'walkthrough' ? (

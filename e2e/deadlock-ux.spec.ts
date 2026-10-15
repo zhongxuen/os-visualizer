@@ -184,6 +184,25 @@ test.describe('canvas motion', () => {
     await page.keyboard.press('End');
     await expect(canvas.locator('[data-tone="cycle"]')).toHaveCount(4);
     await expect(canvas.locator('[data-tone="cycle"]').first()).toContainText('cycle');
+
+    // The two requests cross in the middle; their "cycle" labels must not overlap.
+    const boxes = await canvas
+      .locator('[data-tone="cycle"] .react-flow__edge-textwrapper')
+      .evaluateAll((els) =>
+        els.map((el) => {
+          const r = el.getBoundingClientRect();
+          return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+        }),
+      );
+    expect(boxes).toHaveLength(4);
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const [a, b] = [boxes[i]!, boxes[j]!];
+        const overlap =
+          a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+        expect(overlap, `labels ${i} and ${j} overlap`).toBe(false);
+      }
+    }
   });
 
   test('reduced motion: nothing is left running after a forward step', async ({

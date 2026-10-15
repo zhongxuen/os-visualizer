@@ -2,19 +2,21 @@
 
 import { Check, X } from 'lucide-react';
 
-import { Flash } from '@/components/motion';
+import { DURATION, Flash } from '@/components/motion';
 import type { TlbPolicy } from '@/core/vm/config';
 import type { TlbEntry } from '@/core/vm/tlb';
 import { cn } from '@/lib/cn';
 
 import { EASING, useStepMotion } from './useStepMotion';
+import { flyVpnGhost } from './vpnGhost';
 
 /**
  * The TLB, one row per slot. The slot the current step hits or fills is marked in words
  * as well as colour; an eviction is named under the table.
  *
- * Motion (docs/UIUX.md §7.2.3), forward steps only: on a lookup the page number arrives
- * from the address and a scan highlight sweeps down the entries; a hit pulses green with
+ * Motion (docs/UIUX.md §7.2.3), forward steps only: on a lookup a ghost copy of the
+ * VPN bits travels from the address to the page number being looked up (`vpnGhost.ts`)
+ * and a scan highlight sweeps down the entries; a hit pulses green with
  * "✓ hit"; a miss marks every entry "no match"; a fill slides the new entry into its
  * slot. Each ends in a static mark, so a paused or reduced-motion frame shows it too.
  */
@@ -85,6 +87,12 @@ export function TlbView({
         ),
   );
 
+  const ghostRef = useStepMotion<HTMLSpanElement>(
+    sweep,
+    (chip, duration) => (sweep === null ? null : flyVpnGhost(chip, duration)),
+    DURATION.enter,
+  );
+
   if (slots.length === 0) {
     return (
       <p className="text-small text-fg-muted">
@@ -106,7 +114,11 @@ export function TlbView({
         {lookup ? (
           <>
             Looking up{' '}
-            <span className="border-accent rounded border px-1.5 font-mono">
+            <span
+              ref={ghostRef}
+              data-vpn-chip=""
+              className="border-accent rounded border px-1.5 font-mono"
+            >
               VPN {lookup.vpn}
             </span>
             :{' '}

@@ -6,6 +6,8 @@ import { FrameStrip, type FrameColumn } from '@/components/blocks/FrameStrip';
 import { MiniLineChart } from '@/components/blocks/MiniLineChart';
 import { StepTransitionProvider } from '@/components/motion/useStepTransition';
 import { expectNoAxeViolations } from '@/components/testing/axe';
+import { renderLinked } from '@/components/testing/linked';
+import { REPLACE_SHARE_STATE } from '@/core/replace/state';
 import { BELADY_STRING, OSC10_STRING, presetById } from '@/core/replace/presets';
 import { replace } from '@/core/replace/replace';
 import { REPL_RULES } from '@/core/replace/rules';
@@ -313,7 +315,7 @@ describe('end of the run (G16)', { timeout: 30_000 }, () => {
 
   it('shows the rule used, then the card at the end, and Try this next switches policy', async () => {
     const user = userEvent.setup();
-    const { container } = render(<ReplacementView />);
+    const { container } = renderLinked(<ReplacementView />, REPLACE_SHARE_STATE);
     // Step 1 is a cold fault: decided by the cold/capacity rule.
     expect(container.querySelector('[data-rule-chip="repl.miss.kinds"]')).not.toBeNull();
     await act(async () => {

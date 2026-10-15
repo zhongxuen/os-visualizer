@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 import { MODULES } from '../src/modules/registry';
 
@@ -55,4 +55,13 @@ export async function freePlay(page: Page): Promise<void> {
     await page.waitForTimeout(100);
   }
   throw new Error('Sandbox did not take effect');
+}
+
+/**
+ * Wait until Guided mode's lesson has opened and loaded its first part's example (Q1,
+ * docs/UIUX.md §10.1). A test that then picks a preset is not overtaken by the lesson's
+ * own load, which arrives with the lesson's chunk.
+ */
+export async function lessonSettled(page: Page): Promise<void> {
+  await expect(page.locator('[data-lesson]').getByText('(loaded)')).toBeVisible();
 }

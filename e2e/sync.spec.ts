@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-import { freePlay, useTheme, type Theme } from './routes';
+import { freePlay, lessonSettled, useTheme, type Theme } from './routes';
 
 /**
  * /sync (docs/UIUX.md §2.3 Y1-Y2, §3 B6, §7.2.6): thread keys A/B/C, the lost update
@@ -35,6 +35,7 @@ async function openSync(page: Page) {
   await page.goto('/sync');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Synchronisation');
   await page.waitForLoadState('networkidle');
+  await lessonSettled(page);
   await expect
     .poll(() => page.evaluate(() => window.localStorage.getItem('osv:v1') ?? ''))
     .toContain('moduleModes');
@@ -49,6 +50,9 @@ test('sync: find a lost update with the keyboard, then the mutex leaves one outc
   });
 
   await openSync(page);
+  // Free exploration: in Guided, the lesson's loaded example holds the run at its
+  // checkpoint (Q1), which is not what this test is about.
+  await freePlay(page);
 
   // Keyboard only: reach "Clear picks", press it, then pick threads with A and B.
   const clear = page.getByRole('button', { name: 'Clear picks' });

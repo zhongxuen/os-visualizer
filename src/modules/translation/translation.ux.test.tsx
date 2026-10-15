@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { BitField } from '@/components/blocks/BitField';
 import { expectNoAxeViolations } from '@/components/testing/axe';
+import { renderLinked } from '@/components/testing/linked';
+import { VM_SHARE_STATE } from '@/core/vm/state';
 import { REPLACE_SHARE_STATE } from '@/core/replace/state';
 import { shareStateFromSearch } from '@/core/state/shareState';
 import { geometry } from '@/core/vm/config';
@@ -334,7 +336,7 @@ describe('TranslationView, U3.3', { timeout: 30_000 }, () => {
 
   it('shows the walk and the fill skipped on a TLB hit (T2)', async () => {
     const user = userEvent.setup();
-    render(<TranslationView />);
+    renderLinked(<TranslationView />, VM_SHARE_STATE);
     const run = runVm(ARRAY.input);
     const hit = run.events.findIndex((e) => e.kind === 'vm.tlbHit');
     await act(async () => {
@@ -356,7 +358,7 @@ describe('TranslationView, U3.3', { timeout: 30_000 }, () => {
 
   it('switches the number base with the control and the B key (T1)', async () => {
     const user = userEvent.setup();
-    const { container } = render(<TranslationView />);
+    const { container } = renderLinked(<TranslationView />, VM_SHARE_STATE);
     const figure = () => container.querySelector('figure[data-base]')!;
     expect(figure()).toHaveAttribute('data-base', 'binary');
     await user.click(screen.getByRole('radio', { name: 'Hex' }));
@@ -371,7 +373,7 @@ describe('TranslationView, U3.3', { timeout: 30_000 }, () => {
 
   it('puts the sizing calculator on its own tab, tied to the walk (T4)', async () => {
     const user = userEvent.setup();
-    render(<TranslationView />);
+    renderLinked(<TranslationView />, VM_SHARE_STATE);
     expect(screen.queryByTestId('sizing-intro')).toBeNull();
     await user.click(screen.getByRole('tab', { name: 'Why two levels?' }));
     expect(
@@ -384,7 +386,7 @@ describe('TranslationView, U3.3', { timeout: 30_000 }, () => {
 
   it('ends on a card with the result and a contrasting preset (G16)', async () => {
     const user = userEvent.setup();
-    render(<TranslationView />);
+    renderLinked(<TranslationView />, VM_SHARE_STATE);
     await act(async () => {
       await user.keyboard('{End}');
     });

@@ -69,9 +69,16 @@ describe('adapters', () => {
     // Step 0 is the first fault: the reference is not done until the load.
     expect(referencesDone(eventAt(run, 0))).toBe(0);
     expect(referencesDone(eventAt(run, 1))).toBe(1);
-    expect(stepHeading(eventAt(run, 0), [0, 1])).toBe(
-      'Reference 1 of 2 (page 0): page fault',
+    expect(stepHeading(eventAt(run, 0), [0, 1], 1)).toBe(
+      'Reference 1 of 2 · step 1 (page 0): page fault',
     );
+    // Q6: the step number is the transport's ("step n / total"), ahead of the
+    // reference number once faults have taken more than one step each.
+    const sixth = run.events.findIndex((e) => e.state.index === 5);
+    expect(sixth).toBeGreaterThan(5);
+    expect(
+      stepHeading(run.events[sixth], presetById('ostep')!.input.refString, sixth + 1),
+    ).toMatch(new RegExp(`^Reference 6 of 11 · step ${sixth + 1} \\(page `));
   });
 
   it('finds every anomaly on every curve', () => {

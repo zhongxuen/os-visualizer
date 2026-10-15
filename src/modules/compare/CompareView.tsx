@@ -6,6 +6,8 @@ import { useMemo, useRef, useState } from 'react';
 
 import { GanttChart, type GanttLane } from '@/components/blocks/GanttChart';
 import { Term } from '@/components/glossary/Term';
+import { useLessonAutoLoad } from '@/components/lesson/autoLoad';
+import { LESSON_PRESET, presetSelect } from '@/components/lesson/presetOption';
 import { DURATION } from '@/components/motion/tokens';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
 import { useShareState } from '@/components/state/useShareState';
@@ -201,23 +203,49 @@ export function CompareView() {
   const why = whyLine(table, result.names);
   const next = tryNextFor({ workload, policies });
 
+  const exampleId = activeExample({ workload, policies });
+  const presets = presetSelect(
+    COMPARE_PRESETS.map((p) => ({ value: p.id, label: p.title })),
+    presetId,
+    exampleId,
+    COMPARE_PRESETS[0]!.id,
+  );
+  const lessonExample = presets.lesson
+    ? LESSON_EXAMPLES.find((e) => e.id === exampleId)
+    : undefined;
+  const lessonAuto = useLessonAutoLoad({
+    ready,
+    linked: share.linked,
+    defaults: COMPARE_SHARE_STATE.defaults,
+    input: state.input,
+  });
+  const loadExample = (id: string) => {
+    lessonAuto.lessonLoaded();
+    const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
+    setPresetId(LESSON_PRESET);
+    load(example.input, `Loaded example: ${example.title}`);
+  };
+
   const inputs = (
     <div className="flex flex-col gap-4">
       <Panel title="Presets">
         <SelectField
           label="Preset"
-          value={presetId}
-          options={COMPARE_PRESETS.map((p) => ({ value: p.id, label: p.title }))}
+          value={presets.value}
+          options={presets.options}
           onChange={setPresetId}
         />
         <p className="text-caption text-fg-muted">
-          {COMPARE_PRESETS.find((p) => p.id === presetId)?.summary}
+          {lessonExample
+            ? `From the lesson: ${lessonExample.title}.`
+            : COMPARE_PRESETS.find((p) => p.id === presets.value)?.summary}
         </p>
         <Button
           variant="primary"
           size="sm"
           onClick={() => {
-            const preset = COMPARE_PRESETS.find((p) => p.id === presetId)!;
+            if (lessonExample) return loadExample(lessonExample.id);
+            const preset = COMPARE_PRESETS.find((p) => p.id === presets.value)!;
             load(
               { workload: preset.workload, policies: preset.policies },
               `Loaded preset: ${preset.title}`,
@@ -325,12 +353,10 @@ export function CompareView() {
             store={store}
             unit="tick"
             examples={LESSON_EXAMPLES}
-            activeExample={activeExample({ workload, policies })}
-            onLoadExample={(id) => {
-              const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
-              load(example.input, `Loaded example: ${example.title}`);
-            }}
+            activeExample={exampleId}
+            onLoadExample={loadExample}
             checkpoints={LESSON_CHECKPOINTS}
+            autoLoad={lessonAuto.autoLoad}
           />
         ) : null}
         <section aria-labelledby="charts-heading" className="flex flex-col gap-4">

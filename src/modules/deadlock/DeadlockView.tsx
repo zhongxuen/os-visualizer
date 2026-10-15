@@ -9,6 +9,8 @@ import { CitationsProvider } from '@/components/inspector/CitationsContext';
 import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { ruleUsed, StepInspector } from '@/components/inspector/StepInspector';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
+import { useLessonAutoLoad } from '@/components/lesson/autoLoad';
+import { LESSON_PRESET, presetSelect } from '@/components/lesson/presetOption';
 import { useShareState } from '@/components/state/useShareState';
 import { PhaseStepper } from '@/components/timeline/PhaseStepper';
 import { PlaybackBar } from '@/components/timeline/PlaybackBar';
@@ -259,8 +261,41 @@ export function DeadlockView() {
     setStatus(`Loaded preset: ${preset.title}`);
   };
 
-  const graphPreset = GRAPH_PRESETS.find((p) => p.id === graphPresetId)!;
-  const bankersPreset = BANKERS_PRESETS.find((p) => p.id === bankersPresetId)!;
+  // Q5: "Lesson example" in the dropdown while a lesson example is loaded.
+  const exampleId = activeExample(input);
+  const lessonExample = exampleId
+    ? LESSON_EXAMPLES.find((e) => e.id === exampleId)
+    : undefined;
+  const graphPresets = presetSelect(
+    GRAPH_PRESETS.map((p) => ({ value: p.id, label: p.title })),
+    graphPresetId,
+    exampleId,
+    DEFAULT_GRAPH_PRESET.id,
+  );
+  const bankersPresets = presetSelect(
+    BANKERS_PRESETS.map((p) => ({ value: p.id, label: p.title })),
+    bankersPresetId,
+    exampleId,
+    DEFAULT_BANKERS_PRESET.id,
+  );
+  const graphPreset = GRAPH_PRESETS.find((p) => p.id === graphPresets.value);
+  const bankersPreset = BANKERS_PRESETS.find((p) => p.id === bankersPresets.value);
+  const lessonAuto = useLessonAutoLoad({
+    ready,
+    linked: share.linked,
+    defaults: DEADLOCK_SHARE_STATE.defaults,
+    input: state.input,
+  });
+  const loadExample = (id: string) => {
+    lessonAuto.lessonLoaded();
+    const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
+    setGraphPresetId(LESSON_PRESET);
+    setBankersPresetId(LESSON_PRESET);
+    setInput(example.patch);
+    setLoads((n) => n + 1);
+    setStatus(`Loaded example: ${example.title}`);
+  };
+  const lessonSummary = lessonExample ? `From the lesson: ${lessonExample.title}.` : '';
   const result = finalResult(run);
   const granted = view === 'bankers' && finalResult(bankersRun)?.kind === 'granted';
 
@@ -292,15 +327,19 @@ export function DeadlockView() {
       <Panel title="Presets">
         <SelectField
           label="Preset"
-          value={graphPresetId}
-          options={GRAPH_PRESETS.map((p) => ({ value: p.id, label: p.title }))}
+          value={graphPresets.value}
+          options={graphPresets.options}
           onChange={setGraphPresetId}
         />
-        <p className="text-caption text-fg-muted">{graphPreset.summary}</p>
+        <p className="text-caption text-fg-muted">
+          {graphPreset ? graphPreset.summary : lessonSummary}
+        </p>
         <Button
           variant="primary"
           size="sm"
-          onClick={() => loadGraphPreset(graphPresetId)}
+          onClick={() =>
+            graphPreset ? loadGraphPreset(graphPreset.id) : loadExample(exampleId!)
+          }
         >
           Load preset
         </Button>
@@ -337,15 +376,19 @@ export function DeadlockView() {
       <Panel title="Presets">
         <SelectField
           label="Preset"
-          value={bankersPresetId}
-          options={BANKERS_PRESETS.map((p) => ({ value: p.id, label: p.title }))}
+          value={bankersPresets.value}
+          options={bankersPresets.options}
           onChange={setBankersPresetId}
         />
-        <p className="text-caption text-fg-muted">{bankersPreset.summary}</p>
+        <p className="text-caption text-fg-muted">
+          {bankersPreset ? bankersPreset.summary : lessonSummary}
+        </p>
         <Button
           variant="primary"
           size="sm"
-          onClick={() => loadBankersPreset(bankersPresetId)}
+          onClick={() =>
+            bankersPreset ? loadBankersPreset(bankersPreset.id) : loadExample(exampleId!)
+          }
         >
           Load preset
         </Button>
@@ -572,14 +615,10 @@ export function DeadlockView() {
               store={store}
               unit="step"
               examples={LESSON_EXAMPLES}
-              activeExample={activeExample(input)}
-              onLoadExample={(id) => {
-                const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
-                setInput(example.patch);
-                setLoads((n) => n + 1);
-                setStatus(`Loaded example: ${example.title}`);
-              }}
+              activeExample={exampleId}
+              onLoadExample={loadExample}
               checkpoints={LESSON_CHECKPOINTS}
+              autoLoad={lessonAuto.autoLoad}
             />
           ) : null}
           {mode === 'walkthrough' ? (

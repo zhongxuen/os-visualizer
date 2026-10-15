@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 
-import { freePlay, useTheme, type Theme } from './routes';
+import { freePlay, lessonSettled, useTheme, type Theme } from './routes';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
@@ -50,6 +50,7 @@ test('translation: OSTEP array walk, keyboard to the end, 70% hit rate, axe clea
 
   await page.goto('/translation');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Address Translation');
+  await lessonSettled(page);
 
   // Keyboard only: choose the preset, press Load, then End.
   await page.getByLabel('Preset', { exact: true }).focus();
@@ -285,4 +286,56 @@ test('translation: with motion allowed, a forward step animates and a step back 
   await page.keyboard.press('ArrowLeft');
   await page.waitForTimeout(50);
   expect(await running()).toBe(0);
+});
+
+test('translation: on a TLB lookup a ghost of the VPN bits travels to the TLB, forward only', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto('/translation');
+  await loadPreset(page, 'ostep-array', 'OSTEP array walk');
+  const ghost = page.locator('[data-vpn-ghost]');
+  const chip = page.locator('[data-vpn-chip]');
+
+  // Step 1 splits the address; step 2 looks the VPN up in the TLB.
+  await expect(chip).toHaveCount(0);
+  await step(page);
+  await expect(chip).toHaveCount(1);
+  await expect(ghost).toHaveCount(1, { timeout: 300 });
+  await expect(ghost).toHaveAttribute('aria-hidden', 'true');
+  // It lands and is gone; the chip is what stays.
+  await expect(ghost).toHaveCount(0, { timeout: 2000 });
+
+  // Back onto the lookup: no ghost.
+  await step(page);
+  await expect(chip).toHaveCount(0);
+  await page.waitForTimeout(400);
+  await page.keyboard.press('ArrowLeft');
+  await expect(chip).toHaveCount(1);
+  await page.waitForTimeout(50);
+  await expect(ghost).toHaveCount(0);
+});
+
+test('translation: reduced motion, no VPN ghost on a TLB lookup', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/translation');
+  await loadPreset(page, 'ostep-array', 'OSTEP array walk');
+  await page.evaluate(() => {
+    (window as unknown as { ghosts: number }).ghosts = 0;
+    new MutationObserver((records) => {
+      for (const r of records) {
+        for (const node of r.addedNodes) {
+          if (node instanceof HTMLElement && node.hasAttribute('data-vpn-ghost')) {
+            (window as unknown as { ghosts: number }).ghosts += 1;
+          }
+        }
+      }
+    }).observe(document.body, { childList: true });
+  });
+  await step(page);
+  await expect(page.locator('[data-vpn-chip]')).toHaveCount(1);
+  await page.waitForTimeout(100);
+  expect(
+    await page.evaluate(() => (window as unknown as { ghosts: number }).ghosts),
+  ).toBe(0);
 });

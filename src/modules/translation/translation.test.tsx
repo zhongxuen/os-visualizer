@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { expectNoAxeViolations } from '@/components/testing/axe';
+import { renderLinked } from '@/components/testing/linked';
+import { VM_SHARE_STATE } from '@/core/vm/state';
 import { geometry } from '@/core/vm/config';
 import { presetById } from '@/core/vm/presets';
 import { runVm } from '@/core/vm/translate';
@@ -227,7 +229,7 @@ describe('TranslationView', { timeout: 30_000 }, () => {
 
   it('runs an edited access list', async () => {
     const user = userEvent.setup();
-    render(<TranslationView />);
+    renderLinked(<TranslationView />, VM_SHARE_STATE);
     await user.click(screen.getByRole('button', { name: /Edit this input/ }));
     const box = await screen.findByLabelText(
       /Virtual addresses, in order/,
@@ -250,7 +252,7 @@ describe('TranslationView', { timeout: 30_000 }, () => {
 
   it('shows a schema message for an address too big for the VA', async () => {
     const user = userEvent.setup();
-    render(<TranslationView />);
+    renderLinked(<TranslationView />, VM_SHARE_STATE);
     await user.click(screen.getByRole('button', { name: /Edit this input/ }));
     const box = await screen.findByLabelText(
       /Virtual addresses, in order/,

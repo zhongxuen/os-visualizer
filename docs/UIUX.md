@@ -873,12 +873,12 @@ named the result and offered "Try this next" and the next module.
 
 | # | Where | Pain point | Status |
 |---|---|---|---|
-| Q1 | Every module, Guided, first open | Part 1's text describes its own example (scheduling: "P1 arrives at t = 0 needing 16 ticks", FCFS), but the picture shows the module's default preset (SJF on 6, 8, 7, 3) until "Load this example" is pressed. Text and picture disagree on the very first screen. | **Partly fixed:** the example bar now says "The picture shows a different input. Load this example to follow along." whenever the part's example isn't loaded (`LessonStep.tsx`). Loading part 1's example automatically is a follow-up: the lesson tests pin down today's behaviour (nothing loads or holds until the learner acts), so it is a design change, not a QA fix. |
-| Q2 | Guided, desktop | The lesson column sits above the picture, so at 850 px tall the Gantt chart, frames or graph are below the fold. Pressing Play visibly changes only the inspector. "Try it" and checkpoint buttons scroll the picture into view; Play doesn't. | Follow-up (scroll the picture into view on the first Play in Guided, or put the lesson beside the picture). |
+| Q1 | Every module, Guided, first open | Part 1's text describes its own example (scheduling: "P1 arrives at t = 0 needing 16 ticks", FCFS), but the picture shows the module's default preset (SJF on 6, 8, 7, 3) until "Load this example" is pressed. Text and picture disagree on the very first screen. | **Fixed (U6.1):** opening a lesson part loads its example, so text and picture agree on the first screen, and its checkpoints hold (`LessonStep` → `Walkthrough.openPart`). It never overwrites the learner's input: over a `?s=` link, saved Sandbox work, an edit or a preset (even one equal to a lesson example) the part keeps the "Load this example" bar (`lessonMayLoad`, `useLessonAutoLoad` in `autoLoad.ts`). Tests: `autoLoad.test.ts`, `Walkthrough.test.tsx` › "Guided mode (auto-load)", `guided.spec.ts` › Q1. The old "nothing loads until the learner acts" tests now run with auto-load off, the `?s=`/saved-work case. |
+| Q2 | Guided, desktop | The lesson column sits above the picture, so at 850 px tall the Gantt chart, frames or graph are below the fold. Pressing Play visibly changes only the inspector. "Try it" and checkpoint buttons scroll the picture into view; Play doesn't. | **Fixed (U6.1):** the first Play in a Guided visit scrolls the picture into view with the same `revealVisual` as "Try it" (a jump under reduced motion); later plays leave the scroll alone. Tests: `Walkthrough.test.tsx` › "first Play only", "reduced motion"; `guided.spec.ts` › Q2 (both motion settings). |
 | Q3 | Page Replacement and Deadlock intros, Clock note, wait-for graph caption | Self-closing `<Term id>` rendered the glossary headword mid-sentence: "Serve a Reference string… every Victim chosen", "a Resource-allocation graph", "a Safe state", "a Use bit", "the Wait-for graph". | **Fixed:** lowercase text inside each `<Term>`. |
 | Q4 | Deadlock, desktop | The tab's one-line intro ("Detection: what's happening now…") showed twice: under the tabs and above the picture. | **Fixed:** the copy under the tabs is hidden at `lg`, where both columns are visible. It stays on phone and tablet, where Setup is a separate tab or drawer. |
-| Q5 | Compare, Page Replacement, Guided | After "Load this example", the Presets dropdown still names a different preset (Compare: "FCFS vs SJF vs SRTF (convoy)" while the lesson's "SJF vs RR" is loaded). The status line under it is right. | Follow-up (show "Lesson example" in the dropdown while one is loaded). |
-| Q6 | Page Replacement | The inspector counts references ("Reference 6 of 11") and the transport counts steps ("step 9 / 20"). Both are right, but a beginner sees two different counters. | Follow-up (name the unit in the inspector: "reference 6 of 11 · step 9"). |
+| Q5 | Compare, Page Replacement, Guided | After "Load this example", the Presets dropdown still names a different preset (Compare: "FCFS vs SJF vs SRTF (convoy)" while the lesson's "SJF vs RR" is loaded). The status line under it is right. | **Fixed (U6.1):** in every module with presets (Scheduling, Compare, Translation, Page Replacement, Deadlock's two dropdowns, Sync) the dropdown shows "Lesson example" while a lesson example is loaded, with "From the lesson: …" under it; picking a preset or editing the input takes it back (`presetOption.ts`). Tests: `autoLoad.test.ts` › presetSelect; `guided.spec.ts` › Q5 (Compare, Page Replacement). |
+| Q6 | Page Replacement | The inspector counts references ("Reference 6 of 11") and the transport counts steps ("step 9 / 20"). Both are right, but a beginner sees two different counters. | **Fixed (U6.1):** the inspector heading names both units, "Reference 6 of 11 · step 9 (page 3): page fault", with the step counted as the transport counts it (`stepHeading`). Test: `replacement.test.tsx` › "counts, rates and names steps". |
 | Q7 | `scripts/screenshots.mjs` | Still clicked the "Free play" radio, which U2.1 renamed "Sandbox", so the README screenshots couldn't be retaken. | **Fixed.** |
 | Q8 | `README.md` | Named the modes "Walkthrough" and "Free play". The Sync screenshot's alt text promised the interleaving histogram, which is below the fold. | **Fixed:** "Guided" and "Sandbox", with the glossary mentioned; alt text corrected. Every other claim checked against the site (presets, files, scripts, test coverage). |
 
@@ -977,7 +977,7 @@ README screenshots retaken from the new build (B13, fixed): `docs/media/{home,sc
 | 7.2.2 Shared cursor, "done at t" flag, staggered best markers, typed headline | done | `compare-ux.spec.ts`, `CompareMetrics.tsx` |
 | 7.2.2 Columns reflow with `<Flip>` | done | `PolicyColumns.tsx` |
 | 7.2.3 BitField split, pipeline draw, TLB scan, walk arrows, PA merge, sizing bars | done | `translation.spec.ts` › motion forward, none back |
-| 7.2.3 VPN "ghost copy travels to the TLB" | **not done** | The TLB lookup highlight carries the idea; follow-up. |
+| 7.2.3 VPN "ghost copy travels to the TLB" | done (U6.1) | `vpnGhost.ts`: on a TLB lookup a copy of the VPN bits (both indexes for two levels) flies from the bit field to the "VPN n" chip and fades, through `useStepMotion`, so forward steps only and nothing under reduced motion. `vpnGhost.test.ts`; `translation.spec.ts` › "ghost of the VPN bits", "no VPN ghost" |
 | 7.2.4 Strip columns, drop out/in, Clock ring hand, OPT/LRU labels, Belady callout, curve draw | done | `replacement.spec.ts` |
 | 7.2.5 Request edges flow, cycle drawn and labelled, Work bar, per-column ≤, safe-sequence chips, request checklist, recovery | done | `deadlock-ux.spec.ts` › canvas motion. Allocation "flowing into Work" is a "+n from T1" flash beside the bar, not a slide. |
 | 7.2.6 PC arrow, blocked pulse, ticker values, lost-update strike, lock owner FLIP, histogram bars | done | `sync.spec.ts` |
@@ -1011,9 +1011,22 @@ structural change, left as a follow-up. `/scheduling` has 1.2 KB of headroom und
 
 ### 10.6 Follow-ups
 
-- Split the module workspace to get module routes toward 170 KB (§10.5).
+Done in U6.1 (2026-10-15):
+
 - Q1, Q2, Q5 and Q6 from the second pass (§10.1).
-- The VPN ghost copy (§7.2.3) and the header shrinking on scroll (§7.1).
-- The per-process table scrolls sideways at tablet width (1024 px).
-- On the deadlock graph, the two crossing cycle edges' "cycle" labels overlap in the middle
-  (two-locks preset, 1366 px). They're still readable as words, but untidy.
+- The VPN ghost copy (§7.2.3, §10.4).
+- The per-process table on `/scheduling` no longer scrolls sideways at 1024 px: in a
+  column under 32rem it drops Arrival and CPU (the workload's inputs, in the editor, and
+  said so above the table), tightens its padding, and lets "Completion" and "Turnaround"
+  break at a `<wbr>`. Every metric keeps its column, direction and definition.
+  `scheduling-ux.spec.ts` › "tablet, 1024 px".
+- The deadlock graph's "cycle" labels sit a quarter of the way along each edge from its
+  source instead of at the middle, so the two crossing request edges' labels no longer
+  overlap (`edgeLabelPoint`). `deadlock.test.tsx` › "keeps the labels of two crossing
+  cycle edges apart"; `deadlock-ux.spec.ts` › canvas motion (no two label boxes
+  intersect, 1366 px).
+
+Still open:
+
+- Split the module workspace to get module routes toward 170 KB (§10.5).
+- Dropped: the header shrinking on scroll (§7.1), and B12 (dev-only).

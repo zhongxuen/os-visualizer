@@ -197,6 +197,26 @@ function ResourceNode({ data }: NodeProps<Node<ResourceData>>) {
   );
 }
 
+/**
+ * Where an edge's label sits: this far along the edge from its source, not at the middle.
+ * Two edges that cross (the two-locks preset's requests, T0 → R1 and T1 → R0) cross at
+ * their middles, so labels there land on top of each other; a quarter of the way from
+ * each edge's own source puts them apart, and clear of the arrowhead at the target.
+ */
+export const LABEL_AT = 0.25;
+
+export function edgeLabelPoint(
+  sourceX: number,
+  sourceY: number,
+  targetX: number,
+  targetY: number,
+): [number, number] {
+  return [
+    sourceX + (targetX - sourceX) * LABEL_AT,
+    sourceY + (targetY - sourceY) * LABEL_AT,
+  ];
+}
+
 const TONE_COLOUR: Record<Tone, string> = {
   plain: 'var(--color-fg-muted)',
   path: 'var(--color-accent)',
@@ -214,7 +234,8 @@ function DlEdge({
   data,
 }: EdgeProps<DlFlowEdge>) {
   const { scale } = useStepTransition();
-  const [d, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
+  const [d] = getStraightPath({ sourceX, sourceY, targetX, targetY });
+  const [labelX, labelY] = edgeLabelPoint(sourceX, sourceY, targetX, targetY);
   if (!data) return null;
   const request = data.kind === 'request';
   const drawing = data.draw && scale(DURATION.enter) > 0;

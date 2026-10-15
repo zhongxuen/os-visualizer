@@ -57,13 +57,8 @@ test('a checkpoint can be answered by keyboard, and /learn keeps the progress', 
   const lesson = page.locator('[data-lesson="lesson.scheduling"]');
   await expect(lesson).toBeVisible();
 
-  // Load the example from the keyboard (retried until React has hydrated).
-  const load = lesson.getByRole('button', { name: 'Load this example' });
-  await expect(async () => {
-    await load.focus();
-    await page.keyboard.press('Enter');
-    await expect(lesson.getByText('(loaded)')).toBeVisible({ timeout: 1000 });
-  }).toPass();
+  // Opening the part loaded its example (Q1, docs/UIUX.md §10.1): no click needed.
+  await expect(lesson.getByText('(loaded)')).toBeVisible();
 
   // Tab to the right answer: FCFS runs P2 next, first in the ready queue.
   const card = lesson.locator('[data-checkpoint="convoy-16"]');

@@ -28,9 +28,15 @@ import type { CheckpointSpec, LessonExample, LessonMeta } from './types';
  * A module's Walkthrough mode: the lesson MDX, one part at a time, beside the module's
  * own visualisation and timeline.
  *
- * Each part loads an example into the module ("Load this example") and may hold
- * checkpoints. Once the learner has used the lesson (loaded an example from it, or asked
- * to see a checkpoint's moment), the walkthrough watches
+ * Each part has an example and may hold checkpoints. Opening a part loads its example
+ * (Q1, docs/UIUX.md §10.1), so the text and the picture agree from the first screen, but
+ * only when `autoLoad` says the module's input is the lesson's to replace: never over a
+ * `?s=` link, saved Sandbox work or the learner's own edits, where the part keeps its
+ * "Load this example" bar instead (`lessonMayLoad`). The first Play in a visit brings the
+ * picture into view (Q2), like "Try it" does.
+ *
+ * Once the learner has used the lesson (an example loaded from it, by hand or on opening
+ * a part, or a checkpoint's moment asked for), the walkthrough watches
  * the playback store: playing, stepping or seeking past an unanswered checkpoint on
  * screen pauses the run at the checkpoint's moment. A preset loaded from the Presets
  * panel, or a shared link, is never held, so free exploration is never interrupted.
@@ -53,6 +59,11 @@ export interface WalkthroughProps {
   activeExample: string | null;
   onLoadExample(id: string): void;
   checkpoints: readonly CheckpointSpec[];
+  /**
+   * Opening a part may load its example (see `lessonMayLoad`). Off by default, so a
+   * walkthrough never replaces input it was not told it may.
+   */
+  autoLoad?: boolean;
   className?: string;
 }
 
@@ -65,6 +76,7 @@ export function Walkthrough({
   activeExample,
   onLoadExample,
   checkpoints,
+  autoLoad = false,
   className,
 }: WalkthroughProps) {
   const headingId = useId();
@@ -114,6 +126,32 @@ export function Walkthrough({
   }, []);
 
   const reveal = useCallback(() => revealVisual(rootRef.current), []);
+
+  // Q1: the part last opened with its example loaded automatically, so each opening
+  // loads once and a later change of input (the learner's) is never undone.
+  const opened = useRef<number | null>(null);
+  const openPart = useCallback(
+    (n: number, id: string | undefined) => {
+      if (!autoLoad || opened.current === n) return;
+      opened.current = n;
+      if (!id) return;
+      if (activeExample !== id) onLoadExample(id);
+      setEngaged(true);
+    },
+    [autoLoad, activeExample, onLoadExample],
+  );
+
+  // Q2: the first Play in this visit brings the picture into view. Later plays leave the
+  // scroll position alone, so the learner can read the lesson while the run plays.
+  const played = useRef(false);
+  useEffect(() => {
+    if (store.getState().status === 'playing') played.current = true;
+    return store.subscribe((state) => {
+      if (played.current || state.status !== 'playing') return;
+      played.current = true;
+      revealVisual(rootRef.current);
+    });
+  }, [store]);
 
   // The first unanswered checkpoint on screen whose example is loaded from the lesson.
   const pending = useMemo(
@@ -167,6 +205,7 @@ export function Walkthrough({
       mount,
       pending: pending?.id ?? null,
       reveal,
+      openPart,
     }),
     [
       store,
@@ -183,6 +222,7 @@ export function Walkthrough({
       mount,
       pending,
       reveal,
+      openPart,
     ],
   );
 

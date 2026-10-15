@@ -11,6 +11,8 @@ import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { ruleUsed, StepInspector } from '@/components/inspector/StepInspector';
 import { Flash } from '@/components/motion/Flash';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
+import { useLessonAutoLoad } from '@/components/lesson/autoLoad';
+import { LESSON_PRESET, presetSelect } from '@/components/lesson/presetOption';
 import { useShareState } from '@/components/state/useShareState';
 import { PhaseStepper } from '@/components/timeline/PhaseStepper';
 import { PlaybackBar } from '@/components/timeline/PlaybackBar';
@@ -125,7 +127,32 @@ export function ReplacementView() {
 
   const setInput = (next: ReplInput) => setState((s) => ({ ...s, step: 0, input: next }));
 
-  const preset = REPL_PRESETS.find((p) => p.id === presetId) ?? DEFAULT_PRESET;
+  const exampleId = activeExample(input);
+  const presets = presetSelect(
+    REPL_PRESETS.map((p) => ({ value: p.id, label: p.title })),
+    presetId,
+    exampleId,
+    DEFAULT_PRESET.id,
+  );
+  const lessonExample = presets.lesson
+    ? LESSON_EXAMPLES.find((e) => e.id === exampleId)
+    : undefined;
+  const preset = REPL_PRESETS.find((p) => p.id === presets.value) ?? DEFAULT_PRESET;
+  const lessonAuto = useLessonAutoLoad({
+    ready,
+    linked: share.linked,
+    defaults: REPLACE_SHARE_STATE.defaults,
+    input: state.input,
+  });
+  const loadExample = (id: string) => {
+    lessonAuto.lessonLoaded();
+    const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
+    setPresetId(LESSON_PRESET);
+    setInput(example.input);
+    setGenerator(undefined);
+    setLoads((n) => n + 1);
+    setStatus(`Loaded example: ${example.title}`);
+  };
   const editorKey = `${loads}-${ready ? 1 : 0}`;
 
   const loadPreset = (id: string) => {
@@ -158,12 +185,20 @@ export function ReplacementView() {
       <Panel title="Presets">
         <SelectField
           label="Preset"
-          value={presetId}
-          options={REPL_PRESETS.map((p) => ({ value: p.id, label: p.title }))}
+          value={presets.value}
+          options={presets.options}
           onChange={setPresetId}
         />
-        <p className="text-caption text-fg-muted">{preset.summary}</p>
-        <Button variant="primary" size="sm" onClick={() => loadPreset(presetId)}>
+        <p className="text-caption text-fg-muted">
+          {lessonExample ? `From the lesson: ${lessonExample.title}.` : preset.summary}
+        </p>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() =>
+            lessonExample ? loadExample(lessonExample.id) : loadPreset(preset.id)
+          }
+        >
           Load preset
         </Button>
         <p role="status" className="text-caption text-fg-muted min-h-4">
@@ -185,7 +220,7 @@ export function ReplacementView() {
   const inspector = (
     <div className="flex flex-col gap-4">
       <StepInspector
-        heading={stepHeading(event, refString)}
+        heading={stepHeading(event, refString, Math.min(run.events.length, position + 1))}
         event={event}
         rule={ruleUsed(REPL_RULES, ruleId)}
       />
@@ -282,15 +317,10 @@ export function ReplacementView() {
               store={store}
               unit="step"
               examples={LESSON_EXAMPLES}
-              activeExample={activeExample(input)}
-              onLoadExample={(id) => {
-                const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
-                setInput(example.input);
-                setGenerator(undefined);
-                setLoads((n) => n + 1);
-                setStatus(`Loaded example: ${example.title}`);
-              }}
+              activeExample={exampleId}
+              onLoadExample={loadExample}
               checkpoints={LESSON_CHECKPOINTS}
+              autoLoad={lessonAuto.autoLoad}
             />
           ) : null}
           {mode === 'walkthrough' ? (

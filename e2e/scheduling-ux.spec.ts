@@ -232,3 +232,46 @@ test.describe('phone, 390 px', () => {
     await expect.poll(() => box.evaluate((el) => el.scrollLeft)).toBe(0);
   });
 });
+
+test.describe('tablet, 1024 px', () => {
+  test.use({ viewport: { width: 1024, height: 800 } });
+
+  test('the per-process table fits its column, every metric still defined', async ({
+    page,
+  }) => {
+    await open(page);
+    await loadPreset(page, 'osc-sjf', 'OSC10 SJF (6, 8, 7, 3)');
+    await blur(page);
+    await page.keyboard.press('End');
+
+    const table = page.getByRole('table', { name: /Per process/ });
+    const fit = await table.evaluate((el) => ({
+      table: el.scrollWidth,
+      column: el.parentElement!.clientWidth,
+      scrolls: el.parentElement!.scrollWidth > el.parentElement!.clientWidth,
+    }));
+    expect(fit.scrolls, `table ${fit.table} px in ${fit.column} px`).toBe(false);
+
+    // Every metric keeps its column, its direction and its definition.
+    for (const name of ['Completion', 'Turnaround', 'Waiting', 'Response']) {
+      await expect(
+        table.getByRole('columnheader', { name: new RegExp(name) }),
+      ).toBeVisible();
+    }
+    await expect(table.getByText('lower is better')).toHaveCount(3);
+    const definitions = page
+      .locator('dl dt')
+      .filter({ hasText: /turnaround|waiting|response/i });
+    expect(await definitions.count()).toBeGreaterThanOrEqual(3);
+    // Arrival and CPU, the inputs, are said to be in the editor.
+    await expect(
+      page.getByText(/Arrival and CPU are in the workload editor/),
+    ).toBeVisible();
+    // And the page itself never scrolls sideways.
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBeLessThanOrEqual(0);
+  });
+});

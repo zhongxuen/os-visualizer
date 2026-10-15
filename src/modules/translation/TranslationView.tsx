@@ -11,6 +11,8 @@ import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { ruleUsed, StepInspector } from '@/components/inspector/StepInspector';
 import { Ticker } from '@/components/motion';
 import { ModuleLayout, type ModuleMode } from '@/components/shell/ModuleLayout';
+import { useLessonAutoLoad } from '@/components/lesson/autoLoad';
+import { LESSON_PRESET, presetSelect } from '@/components/lesson/presetOption';
 import { useShareState } from '@/components/state/useShareState';
 import { isTypingTarget } from '@/components/timeline/keymap';
 import { PhaseStepper } from '@/components/timeline/PhaseStepper';
@@ -285,7 +287,31 @@ export function TranslationView() {
     setStatus(`Loaded ${verb}: ${preset.title}`);
   };
 
-  const preset = VM_PRESETS.find((p) => p.id === presetId) ?? DEFAULT_PRESET;
+  const exampleId = activeExample(input);
+  const presets = presetSelect(
+    VM_PRESETS.map((p) => ({ value: p.id, label: p.title })),
+    presetId,
+    exampleId,
+    DEFAULT_PRESET.id,
+  );
+  const lessonExample = presets.lesson
+    ? LESSON_EXAMPLES.find((e) => e.id === exampleId)
+    : undefined;
+  const preset = VM_PRESETS.find((p) => p.id === presets.value) ?? DEFAULT_PRESET;
+  const lessonAuto = useLessonAutoLoad({
+    ready,
+    linked: share.linked,
+    defaults: VM_SHARE_STATE.defaults,
+    input: state.input,
+  });
+  const loadExample = (id: string) => {
+    lessonAuto.lessonLoaded();
+    loadPreset(
+      LESSON_EXAMPLES.find((e) => e.id === id)!,
+      'example',
+    );
+    setPresetId(LESSON_PRESET);
+  };
   const editorKey = `${loads}-${ready ? 1 : 0}`;
 
   const inputs = (
@@ -293,12 +319,20 @@ export function TranslationView() {
       <Panel title="Presets">
         <SelectField
           label="Preset"
-          value={presetId}
-          options={VM_PRESETS.map((p) => ({ value: p.id, label: p.title }))}
+          value={presets.value}
+          options={presets.options}
           onChange={setPresetId}
         />
-        <p className="text-caption text-fg-muted">{preset.summary}</p>
-        <Button variant="primary" size="sm" onClick={() => loadPreset(preset)}>
+        <p className="text-caption text-fg-muted">
+          {lessonExample ? `From the lesson: ${lessonExample.title}.` : preset.summary}
+        </p>
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={() =>
+            lessonExample ? loadExample(lessonExample.id) : loadPreset(preset)
+          }
+        >
           Load preset
         </Button>
         <p role="status" className="text-caption text-fg-muted min-h-4">
@@ -491,12 +525,10 @@ export function TranslationView() {
               store={store}
               unit="step"
               examples={LESSON_EXAMPLES}
-              activeExample={activeExample(input)}
-              onLoadExample={(id) => {
-                const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
-                loadPreset(example, 'example');
-              }}
+              activeExample={exampleId}
+              onLoadExample={loadExample}
               checkpoints={LESSON_CHECKPOINTS}
+              autoLoad={lessonAuto.autoLoad}
             />
           ) : null}
           {mode === 'walkthrough' ? (

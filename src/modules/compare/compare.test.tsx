@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { StepTransitionProvider } from '@/components/motion/useStepTransition';
 import { expectNoAxeViolations } from '@/components/testing/axe';
+import { renderLinked } from '@/components/testing/linked';
+import { COMPARE_SHARE_STATE } from '@/core/sched/state';
 import { compare, COMPARE_PRESETS, whyLine } from '@/core/sched/compare';
 
 import { CompareView, tableAt } from './CompareView';
@@ -140,7 +142,7 @@ describe('CompareView', { timeout: 30_000 }, () => {
 
   it('adds and removes policy columns within 2 to 4', async () => {
     const user = userEvent.setup();
-    render(<CompareView />);
+    renderLinked(<CompareView />, COMPARE_SHARE_STATE);
     await openEditor(user);
     expect(screen.getAllByRole('button', { name: /^Remove column/ })).toHaveLength(3);
     await user.click(screen.getByRole('button', { name: 'Add a policy' }));

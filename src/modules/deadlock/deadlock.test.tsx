@@ -28,7 +28,7 @@ import { BankersEditor, BankersQueryForm, BankersStep } from './BankersView';
 import { CoffmanPanel } from './CoffmanPanel';
 import { DeadlockView } from './DeadlockView';
 import { DetectView } from './DetectView';
-import GraphCanvas, { layout } from './GraphCanvas';
+import GraphCanvas, { edgeLabelPoint, layout } from './GraphCanvas';
 import { GraphEditorForm } from './GraphEditorForm';
 import { RecoveryPanel } from './RecoveryPanel';
 
@@ -97,6 +97,21 @@ describe('adapters', () => {
     expect(at.thread(0)).toEqual({ x: 120, y: 0 });
     expect(at.resource(0)).toEqual({ x: 0, y: 190 });
     expect(at.resource(3).x - at.resource(0).x).toBe(360);
+  });
+
+  it('keeps the labels of two crossing cycle edges apart (two locks)', () => {
+    // T0 -> R1 and T1 -> R0 cross at their middles, where labels used to sit.
+    const at = layout(2, 2);
+    const [t0, t1, r0, r1] = [at.thread(0), at.thread(1), at.resource(0), at.resource(1)];
+    const a = edgeLabelPoint(t0.x, t0.y, r1.x, r1.y);
+    const b = edgeLabelPoint(t1.x, t1.y, r0.x, r0.y);
+    // A "cycle" label is about 40 units wide with its background, at the graph's scale.
+    expect(Math.abs(a[0] - b[0])).toBeGreaterThanOrEqual(48);
+    // Each label is still on its own edge, between its ends.
+    expect(a[0]).toBeGreaterThan(t0.x);
+    expect(a[0]).toBeLessThan(r1.x);
+    expect(b[0]).toBeLessThan(t1.x);
+    expect(b[0]).toBeGreaterThan(r0.x);
   });
 });
 

@@ -15,7 +15,9 @@ import { Term } from '@/components/glossary/Term';
 import { CitationsProvider } from '@/components/inspector/CitationsContext';
 import { RulesPanel } from '@/components/inspector/RulesPanel';
 import { ruleUsed, StepInspector } from '@/components/inspector/StepInspector';
+import { useLessonAutoLoad } from '@/components/lesson/autoLoad';
 import { matchExample } from '@/components/lesson/examples';
+import { LESSON_PRESET, presetSelect } from '@/components/lesson/presetOption';
 import { Flash } from '@/components/motion/Flash';
 import { DURATION } from '@/components/motion/tokens';
 import { useStepTransition } from '@/components/motion/useStepTransition';
@@ -147,17 +149,40 @@ function Stat({
   );
 }
 
-/** The per-process columns, each with its direction and definition (G14). */
+/**
+ * The per-process columns, each with its direction and definition (G14).
+ *
+ * In a narrow Watch column (under 32rem: the three-column desktop layout at 1024 px, or a
+ * phone) the table drops Arrival and CPU, which are the workload's inputs and are in the
+ * editor, tightens its cell padding, and lets the two longest headers break
+ * ("Comple|tion", "Turn|around", at a `<wbr>`, so their names read the same). Every
+ * metric keeps its column, its direction and its definition, and nothing scrolls
+ * sideways (`NARROW_TABLE`).
+ */
 const PROCESS_COLUMNS: readonly MetricsColumn[] = [
   { id: 'arrival', label: 'Arrival', header: <Term id="arrival">Arrival</Term> },
   { id: 'cpu', label: 'CPU', header: <Term id="cpu-burst">CPU</Term> },
-  { id: 'completion', label: 'Completion' },
+  {
+    id: 'completion',
+    label: 'Completion',
+    header: (
+      <>
+        Comple
+        <wbr />
+        tion
+      </>
+    ),
+  },
   {
     id: 'turnaround',
     label: 'Turnaround',
     header: (
       <span className="inline-flex flex-col items-end">
-        <Term id="turnaround-time">Turnaround</Term>
+        <Term id="turnaround-time">
+          Turn
+          <wbr />
+          around
+        </Term>
         <Direction better="lower" wrap />
       </span>
     ),
@@ -183,6 +208,10 @@ const PROCESS_COLUMNS: readonly MetricsColumn[] = [
     ),
   },
 ];
+
+/** Columns 2 and 3 of every row are Arrival and CPU (column 1 is the process). */
+const NARROW_TABLE =
+  '@max-[32rem]:[&_tr>:nth-child(2)]:hidden @max-[32rem]:[&_tr>:nth-child(3)]:hidden @max-[32rem]:[&_td]:px-1 @max-[32rem]:[&_th]:px-1';
 
 /** RR and MLFQ: how much of the running process's quantum is gone, as a draining ring. */
 function QuantumRing({ used, quantum }: { used: number; quantum: number }) {
@@ -411,8 +440,32 @@ export function SchedulingView() {
     .map((value, index) => ({ value: asSaved(value), index }))
     .filter((entry): entry is { value: SavedRun; index: number } => entry.value !== null);
 
-  const preset = SCHED_PRESETS.find((p) => p.id === presetId);
+  const presets = presetSelect(
+    SCHED_PRESETS.map((p) => ({ value: p.id, label: p.title })),
+    presetId,
+    activeExample,
+    SCHED_PRESETS[1]!.id,
+  );
+  const preset = presets.lesson
+    ? undefined
+    : SCHED_PRESETS.find((p) => p.id === presets.value);
   const presetNote = preset ? mlfqRulesNote(preset.policy) : null;
+  const lessonExample = presets.lesson
+    ? LESSON_EXAMPLES.find((e) => e.id === activeExample)
+    : undefined;
+  const lessonAuto = useLessonAutoLoad({
+    ready,
+    linked: share.linked,
+    defaults: SCHED_SHARE_STATE.defaults,
+    input: state.input,
+    saved: saved.length,
+  });
+  const loadExample = (id: string) => {
+    lessonAuto.lessonLoaded();
+    const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
+    setPresetId(LESSON_PRESET);
+    load(example.input, `Loaded example: ${example.title}`);
+  };
   const next = tryNextFor(policy);
 
   const inputs = (
@@ -420,11 +473,13 @@ export function SchedulingView() {
       <Panel title="Presets">
         <SelectField
           label="Preset"
-          value={presetId}
-          options={SCHED_PRESETS.map((p) => ({ value: p.id, label: p.title }))}
+          value={presets.value}
+          options={presets.options}
           onChange={setPresetId}
         />
-        <p className="text-caption text-fg-muted">{preset?.summary}</p>
+        <p className="text-caption text-fg-muted">
+          {lessonExample ? `From the lesson: ${lessonExample.title}.` : preset?.summary}
+        </p>
         {presetNote ? (
           <p className="text-caption text-fg-secondary">
             <Term id="mlfq">MLFQ</Term> rules on show. {presetNote}
@@ -434,7 +489,8 @@ export function SchedulingView() {
           variant="primary"
           size="sm"
           onClick={() => {
-            const chosen = SCHED_PRESETS.find((p) => p.id === presetId)!;
+            if (lessonExample) return loadExample(lessonExample.id);
+            const chosen = preset!;
             load(
               { workload: chosen.workload, policy: chosen.policy },
               `Loaded preset: ${chosen.title}`,
@@ -640,8 +696,12 @@ export function SchedulingView() {
           better="lower"
         />
       </dl>
-      <div className="overflow-x-auto">
+      <div className="@container overflow-x-auto">
+        <p className="text-caption text-fg-muted mb-1 hidden @max-[32rem]:block">
+          Arrival and CPU are in the workload editor; this table shows the results.
+        </p>
         <MetricsTable
+          className={NARROW_TABLE}
           caption={`Per process at t = ${tick} (— = not yet). Hover or focus a row to draw it on the Gantt chart.`}
           columns={PROCESS_COLUMNS}
           rows={processRows(metrics)}
@@ -695,11 +755,9 @@ export function SchedulingView() {
               unit="tick"
               examples={LESSON_EXAMPLES}
               activeExample={activeExample}
-              onLoadExample={(id) => {
-                const example = LESSON_EXAMPLES.find((e) => e.id === id)!;
-                load(example.input, `Loaded example: ${example.title}`);
-              }}
+              onLoadExample={loadExample}
               checkpoints={LESSON_CHECKPOINTS}
+              autoLoad={lessonAuto.autoLoad}
             />
           ) : null}
           {mode === 'walkthrough' ? (

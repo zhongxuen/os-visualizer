@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { expectNoAxeViolations } from '@/components/testing/axe';
+import { renderLinked } from '@/components/testing/linked';
+import { SCHED_SHARE_STATE } from '@/core/sched/state';
 import { runMetrics } from '@/core/sched/metrics';
 import { presetById, SCHED_PRESETS } from '@/core/sched/presets';
 import { SCHED_RULES } from '@/core/sched/rules';
@@ -355,7 +357,7 @@ describe('SchedulingView, U3.1', { timeout: 60_000 }, () => {
 
   it('folds the editor behind Edit (G10) and offers a contrasting next run (G16)', async () => {
     const user = userEvent.setup();
-    render(<SchedulingView />);
+    renderLinked(<SchedulingView />, SCHED_SHARE_STATE);
 
     const edit = screen.getByRole('button', { name: 'Edit the policy and workload' });
     expect(edit).toHaveAttribute('aria-expanded', 'true');

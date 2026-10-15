@@ -14,6 +14,9 @@ import { EASING, useStepMotion } from './useStepMotion';
  * fields, one number base at a time, the split explained with derived numbers, and the
  * physical address once it is formed.
  *
+ * The bit field is marked `data-vpn-source`: the TLB lookup's ghost copy of the VPN
+ * starts there (`vpnGhost.ts`).
+ *
  * Motion, forward steps only: on the split the fields move apart from one block into
  * their places; when the physical address is formed, the PFN and the offset slide
  * together into it. Both end on the resting layout, which shows the same thing.
@@ -105,7 +108,7 @@ export function AddressView({ event, g, base, position }: AddressViewProps) {
   return (
     <div className="flex flex-col gap-3">
       <SplitExplainer g={g} />
-      <div ref={vaRef}>
+      <div ref={vaRef} data-vpn-source="">
         <BitField
           label="Virtual address"
           value={event.va}
