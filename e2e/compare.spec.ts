@@ -1,6 +1,8 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
+import { freePlay } from './routes';
+
 test('compare: RR quantum sweep, context switches fall as the quantum grows, axe clean', async ({
   page,
 }) => {
@@ -12,10 +14,17 @@ test('compare: RR quantum sweep, context switches fall as the quantum grows, axe
   await page.goto('/compare');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Compare schedulers');
 
-  await page.getByLabel('Preset', { exact: true }).focus();
-  await page.getByLabel('Preset', { exact: true }).selectOption('rr-sweep');
-  await page.keyboard.press('Tab');
-  await page.keyboard.press('Enter');
+  await freePlay(page);
+  // Retry until hydrated: a choice made before React attaches is lost.
+  await expect(async () => {
+    await page.getByLabel('Preset', { exact: true }).focus();
+    await page.getByLabel('Preset', { exact: true }).selectOption('rr-sweep');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await expect(page.getByText('Loaded preset: RR quantum sweep (CS = 1)')).toBeVisible({
+      timeout: 500,
+    });
+  }).toPass();
   for (const q of [1, 2, 4, 8]) {
     await expect(
       page.getByRole('group', { name: `Gantt chart, RR q=${q}`, exact: true }),

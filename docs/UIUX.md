@@ -835,4 +835,162 @@ Status to [done] with the date. Commit.
 
 ## 10. QA results
 
-*Empty until U5.1.*
+U5.1, 2026-10-15, on `main` at `0994bcd` plus the fixes below. Production build
+(`next build && next start -p 3100`), Chromium. The walk covered every route at
+1366×850 and 390×844, light and dark, with module routes in Guided (first visit) and in
+Sandbox at the end of the run: 44 page loads and 68 full-page screenshots. There was no
+horizontal page scroll anywhere, and no console errors apart from the 404 status on
+`/no-such-page`. The full e2e suite passes: **135 passed**, after the fixes.
+
+**Fixed in U5.1**
+
+| Problem found | Fix |
+|---|---|
+| axe `link-in-text-block` (serious) on `/`, both themes: the "After that: Synchronisation" link was told apart from the text by colour alone (`a11y.spec.ts`, `smoke.spec.ts` failed). | Underlined (`LearningOrder.tsx`). |
+| Reduced motion was flaky on `/scheduling`: the header `ModuleGlyph` plays once with a 1 s `animation-delay`. The global rule collapsed the duration but not the delay, so the animation stayed "running" for a second (1 run in 8 failed). | The global reduced-motion rule also zeroes `animation-delay` and `transition-delay` (`globals.css`). Now 10 of 10 repeats pass. |
+| The per-process table on `/scheduling` at 1366 px cut off the Response column behind a sideways scroll: the direction labels ("↓ lower is better") could not wrap. | They wrap in table headers (`Direction wrap`). At 1366 px the table now fits (574 = 574 px). At 1024 px it still scrolls inside its own region. |
+| `compare.spec.ts` chose the preset before hydration, so the default preset loaded and the RR charts were missing. | It uses the suite's retry-until-hydrated pattern and switches to Sandbox first. |
+| No deuteranopia check on the deadlock graph. | `colour-blind.spec.ts` › "Deadlock graph": request edges are dashed and assignment edges solid, and every cycle edge is thicker and says "cycle". Screenshot: `deadlock-graph-deuteranopia.png`. |
+
+**Checks run (all pass)**
+
+| Check | Evidence |
+|---|---|
+| axe on every route, both themes, Guided (every lesson part) and Sandbox | `a11y.spec.ts` (22 tests) plus per-module `*-ux.spec.ts` at 1366 and 390 px |
+| Keyboard walk per module | `keyboard.spec.ts` (6 modules), plus each module's keyboard-only test and `workspace.spec.ts` (desktop, tablet, phone) |
+| Deuteranopia: Gantt, FrameStrip, deadlock graph | `colour-blind.spec.ts`: `gantt-deuteranopia.png`, `framestrip-deuteranopia.png`, `deadlock-graph-deuteranopia.png` (in `test-results/`) |
+| Reduced motion: a forward step leaves nothing animating | `scheduling-ux`, `compare-ux`, `translation`, `replacement`, `deadlock-ux` and `sync` specs |
+| No horizontal scroll at 375/390 px | `shell.spec.ts` › phone, plus the U5.1 walk |
+
+### 10.1 §2 items
+
+| # | Status | Evidence |
+|---|---|---|
+| P1 | done | Home hero CTAs and live cards (`smoke.spec.ts`) |
+| P2 | done | Hero sentence in plain words ("Who gets the CPU next, where an address really points…") |
+| P3 | done | Honesty line: "…so the numbers match your textbook and homework rather than what your laptop does" |
+| P4 | done | Status pills read "Ready" / "Coming later" (`SiteHeaderMenus`, `ModuleGrid`) |
+| P5 | done | `ModuleGlyph` on every card |
+| P6 | done | "Where to start" rail 1→5 (`LearningOrder.tsx`) |
+| P7 | done | How it works, modules, learning order, honesty note: the page fills the screen |
+| P8 | done | Section rules and the rail break up the phone page |
+| P9 | done | Header, footer, theme toggle, keyboard help (`shell.spec.ts`) |
+| P10 | done | `not-found.tsx` in the shell (`shell.spec.ts` › 404) |
+| G1 | done | `ModuleLayout.test.tsx` (first visit opens Guided) |
+| G2 | done | `glossary.test.ts`, `Term`, `/learn/glossary` (`learn.spec.ts`) |
+| G3 | done | `CitationLink` popover with the full reference |
+| G4 | done | `inspector.test.tsx`: plain / formal / why it matters |
+| G5 | done | "Rule used" chip in the inspector (`inspector.test.tsx`) |
+| G6 | done | `ShortcutsSheet.test.tsx`, `shell.spec.ts` › keyboard help |
+| G7 | done | Timecode "t = 7 ticks" with a `<Term>` (`Timeline.tsx`) |
+| G8 | done | One-line header note linking `/about#model` (`about.spec.ts`) |
+| G9 | done | `workspace.spec.ts` › phone tabs, Play switches to Watch |
+| G10 | done | Presets first, "Edit…" and "More options" in every module (`*/ux.test.tsx`) |
+| G11 | done | `messages.ts` per module (`ux.test.tsx`) |
+| G12 | done | "Guided" / "Sandbox" with descriptions |
+| G13 | done | Thread chips are rounded squares; intro names T0, T1… (`deadlock-ux.spec.ts`) |
+| G14 | done | Direction on every metric, definitions (`scheduling/ux.test.tsx`) |
+| G15 | done | `ShareControl.test.tsx` |
+| G16 | done | `EndOfRunCard` on every module, with "Try this next" and the next module |
+| S1 | done | Burst builder (`scheduling/ux.test.tsx`) |
+| S2 | done | Priority header and rule chip (`ux.test.tsx`) |
+| S3 | done | `scheduling-ux.spec.ts` › brackets on hover |
+| S4 | done | Same test, linked highlighting |
+| S5 | done | Legend: "These ticks are neither busy nor idle" |
+| S6 | done | `scheduling-ux.spec.ts` › 300 ticks fit at 390 px and follow the cursor |
+| S7 | done | MLFQ lanes, rule chips (`ux.test.tsx`) |
+| S8 | done | "Waiting: P1 (arrived t = 0): longer next burst" (`ux.test.tsx`) |
+| C1 | done | `compare-ux.spec.ts` › phone: one policy, mini-map, metric cards |
+| C2 | done | `compare-ux.spec.ts` › directions and ties |
+| C3 | done | "Why?" headline above the table |
+| C4 | done | "Add policy" menu (`compare-ux.spec.ts` keyboard walk) |
+| T1 | done | `BaseSwitch`: binary by default, derived sizes line |
+| T2 | done | `translation.spec.ts` › pipeline skipped on a TLB hit |
+| T3 | done | `<Term>` for each acronym; rows read "entry for page 6" |
+| T4 | done | "Why two levels?" tab (`SizingTab`) |
+| T5 | done | `translation.spec.ts` › fault carries its pages via `?s=` |
+| R1 | done | `FaultSplit` cold/capacity bar with `<Term>`s |
+| R2 | done | OPT "next use in n" labels (`replacement/ux.test.tsx`) |
+| R3 | done | `replacement.spec.ts` › callout exactly when 4 frames pass 3 |
+| R4 | done | FrameStrip fit, sticky labels, current column in view |
+| R5 | done | Live parsed chips, an error per token (`ux.test.tsx`) |
+| D1 | done | Tab intros (`deadlock-ux.spec.ts`) |
+| D2 | done | Need "= Max − Allocation", `WorkBar`, compared row at full strength |
+| D3 | done | "Always true here" wording (`CoffmanPanel`) |
+| D4 | done | `deadlock-ux.spec.ts` › touch: view-only |
+| D5 | done | "One safe order (there may be others)" |
+| Y1 | done | Thread keys A/B (`sync.spec.ts` › shortcuts sheet) |
+| Y2 | done | Lost update struck through (`sync.spec.ts`) |
+| A1 | done | `about.spec.ts` › "what this means for you" first |
+| A2 | done | `shell.spec.ts` › 404 lists modules and `/learn` |
+| A3 | done | `a11y.spec.ts` › `/demo` noindex; `shell.spec.ts` › not linked |
+
+### 10.2 §3 bugs
+
+| # | Status | Evidence |
+|---|---|---|
+| B1–B4, B8 | fixed | Earlier (§3, U0.1) |
+| B5 | fixed | `not-found.tsx`; axe clean on the 404 (`a11y.spec.ts`) |
+| B6 | fixed | A/B keys; `keymap.test.ts` uniqueness test |
+| B7 | fixed | Geist and Geist Mono through `next/font` (`layout.tsx`) |
+| B9 | fixed | Motion primitives go through `useReducedMotionSafe`. U5.1 also zeroes delays (above). |
+| B10 | fixed | Heading-only links stretched over the card (`ModuleGrid.tsx`) |
+| B11 | fixed | `workspace.spec.ts` › transport hides while a field has focus |
+| B12 | not done | Optional dev-only nicety; production is unaffected. |
+| B13 | open → U5.2 | README screenshots |
+
+### 10.3 §7 animations
+
+| Where | Status | Notes |
+|---|---|---|
+| 7.1 Home hero Gantt | done | Server-generated CSS, pauses on hover and focus, plus a Pause box |
+| 7.1 ModuleGlyph | done | Plays once and rests on a frame that shows the idea |
+| 7.1 Card hover | done | |
+| 7.1 Header shrinks on scroll | **not done** | Sticky with a rule, but it doesn't shrink. Low value; dropped. |
+| 7.1 Theme toggle icon cross-fade | partly | A three-way segmented control with icons and no cross-fade (a design change in U1.2) |
+| 7.1 Learn rings fill, tick on finish | done | `LearnProgress.tsx` |
+| 7.2.1 Gantt extend, notches, CS hatching | done | `GanttChart.tsx` |
+| 7.2.1 Queue FLIP, quantum ring, aging ticker, MLFQ lanes | done | `QueueView` `<Flip>`, `QuantumRing`, `Ticker` |
+| 7.2.1 Metric brackets | done | S3 |
+| 7.2.2 Shared cursor, "done at t" flag, staggered best markers, typed headline | done | `compare-ux.spec.ts`, `CompareMetrics.tsx` |
+| 7.2.2 Columns reflow with `<Flip>` | done | `PolicyColumns.tsx` |
+| 7.2.3 BitField split, pipeline draw, TLB scan, walk arrows, PA merge, sizing bars | done | `translation.spec.ts` › motion forward, none back |
+| 7.2.3 VPN "ghost copy travels to the TLB" | **not done** | The TLB lookup highlight carries the idea; follow-up. |
+| 7.2.4 Strip columns, drop out/in, Clock ring hand, OPT/LRU labels, Belady callout, curve draw | done | `replacement.spec.ts` |
+| 7.2.5 Request edges flow, cycle drawn and labelled, Work bar, per-column ≤, safe-sequence chips, request checklist, recovery | done | `deadlock-ux.spec.ts` › canvas motion. Allocation "flowing into Work" is a "+n from T1" flash beside the bar, not a slide. |
+| 7.2.6 PC arrow, blocked pulse, ticker values, lost-update strike, lock owner FLIP, histogram bars | done | `sync.spec.ts` |
+| 7.3 Checkpoint cards, "Try it" scrolls into view | done | `learn.spec.ts` › checkpoint by keyboard |
+
+### 10.4 First-load JS
+
+From `npm run perf:bundles` (gzipped, every script and JS preload in the prerendered
+HTML, deduplicated):
+
+| Route | First-load JS | Repo budget (`perf/bundles.mjs`) | Plan target (§6.1) |
+|---|---|---|---|
+| `/scheduling` | 248.8 KB | 250 ✓ | 170 ✗ |
+| `/replacement` | 245.3 KB | 250 ✓ | 170 ✗ |
+| `/deadlock` (before React Flow, loaded on demand) | 244.6 KB | 250 ✓ | 170 ✗ |
+| `/translation` | 244.1 KB | 250 ✓ | 170 ✗ |
+| `/sync` | 241.8 KB | 250 ✓ | 170 ✗ |
+| `/compare` | 240.5 KB | 250 ✓ | 170 ✗ |
+| `/demo` | 242.0 KB | 250 ✓ | — |
+| `/learn` | 157.1 KB | 165 ✓ | 170 ✓ |
+| `/learn/glossary` | 156.6 KB | 165 ✓ | 170 ✓ |
+| `/`, `/about`, 404 | 154.9 KB | 165 ✓ | 170 ✓ |
+
+**The 170 KB module-route target is not met, and can't be met by a UI fix.** React,
+React DOM and the Next runtime alone are 131 KB (`/_global-error`). The shared workspace
+(timeline, inspector, glossary popovers, `zod` schemas for `?s=`, the `motion` FLIP
+chunk) adds about 90 KB before any module code. Getting to 170 KB would need the
+workspace split so that Sandbox-only and lesson code load on demand. That is a
+structural change, left as a follow-up. `/scheduling` has 1.2 KB of headroom under the
+250 KB repo budget, so the next feature there has to pay for itself.
+
+### 10.5 Follow-ups
+
+- Split the module workspace to get module routes toward 170 KB (§10.4).
+- The VPN ghost copy (§7.2.3) and the header shrinking on scroll (§7.1).
+- The per-process table scrolls sideways at tablet width (1024 px).
+- On the deadlock graph, the two crossing cycle edges' "cycle" labels overlap in the middle
+  (two-locks preset, 1366 px). They're still readable as words, but untidy.

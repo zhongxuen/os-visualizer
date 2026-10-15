@@ -94,8 +94,11 @@ body {
 @media (prefers-reduced-motion: reduce) {
   :root :is(*, *::before, *::after) {
     animation-duration: 0.01ms !important;
+    /* A delay would hold a collapsed animation "running" for its length. */
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }

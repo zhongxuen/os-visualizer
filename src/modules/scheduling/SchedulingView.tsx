@@ -96,11 +96,25 @@ function asSaved(value: unknown): SavedRun | null {
 
 /* --- Small parts ----------------------------------------------------------- */
 
-/** G14: which way is good, as an icon and words. */
-function Direction({ better }: { better: 'lower' | 'higher' }) {
+/**
+ * G14: which way is good, as an icon and words. `wrap` lets it break onto two lines in a
+ * table header, so six columns fit the Watch column at 1366 px without scrolling.
+ */
+function Direction({
+  better,
+  wrap = false,
+}: {
+  better: 'lower' | 'higher';
+  wrap?: boolean;
+}) {
   const Icon = better === 'lower' ? ArrowDown : ArrowUp;
   return (
-    <span className="text-caption text-fg-muted inline-flex items-center gap-0.5 font-normal whitespace-nowrap">
+    <span
+      className={cn(
+        'text-caption text-fg-muted inline-flex items-center gap-0.5 font-normal',
+        wrap ? 'text-right' : 'whitespace-nowrap',
+      )}
+    >
       <Icon aria-hidden="true" className="size-3" />
       {better} is better
     </span>
@@ -144,7 +158,7 @@ const PROCESS_COLUMNS: readonly MetricsColumn[] = [
     header: (
       <span className="inline-flex flex-col items-end">
         <Term id="turnaround-time">Turnaround</Term>
-        <Direction better="lower" />
+        <Direction better="lower" wrap />
       </span>
     ),
   },
@@ -154,7 +168,7 @@ const PROCESS_COLUMNS: readonly MetricsColumn[] = [
     header: (
       <span className="inline-flex flex-col items-end">
         <Term id="waiting-time">Waiting</Term>
-        <Direction better="lower" />
+        <Direction better="lower" wrap />
       </span>
     ),
   },
@@ -164,7 +178,7 @@ const PROCESS_COLUMNS: readonly MetricsColumn[] = [
     header: (
       <span className="inline-flex flex-col items-end">
         <Term id="response-time">Response</Term>
-        <Direction better="lower" />
+        <Direction better="lower" wrap />
       </span>
     ),
   },

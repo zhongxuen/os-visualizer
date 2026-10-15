@@ -56,7 +56,7 @@ export function LearningOrder() {
       <p className="text-small text-fg-secondary mt-6">
         After that:{' '}
         {sync.status === 'ready' ? (
-          <Link href={sync.route} className="text-accent hover:underline">
+          <Link href={sync.route} className="text-accent underline underline-offset-2">
             {sync.title}
           </Link>
         ) : (

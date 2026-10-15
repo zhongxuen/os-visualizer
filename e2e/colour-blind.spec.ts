@@ -1,7 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
+import { freePlay } from './routes';
+
 /**
- * The colour-blind check: the Gantt chart and the frame strip under a simulated
+ * The colour-blind check: the Gantt chart, the frame strip and the deadlock graph under a simulated
  * deuteranopia filter (the commonest form, red-green), screenshotted for a person to
  * look at and checked by machine for what must survive without colour.
  *
@@ -9,6 +11,8 @@ import { expect, test, type Page } from '@playwright/test';
  *   carries its PID, so two processes never differ by hue alone.
  * - Frame strip: a hit and a fault, and the frame a page was loaded into, are words
  *   ("hit", "fault", "in"), not colours.
+ * - Deadlock graph: request edges are dashed and assignment edges solid, and a cycle
+ *   edge is thicker and labelled "cycle".
  *
  * The screenshots are attached to the test report (and written to test-results/).
  */
@@ -97,5 +101,44 @@ test('Frame strip: hits, faults and loads are words', async ({ page }, testInfo)
   await expect(strip.locator('td[data-loaded]')).toHaveCount(9);
   for (const cell of await strip.locator('td[data-loaded]').all()) {
     await expect(cell).toContainText('in');
+  }
+});
+
+test('Deadlock graph: the cycle and the edge kinds survive without colour', async ({
+  page,
+}, testInfo) => {
+  await page.goto('/deadlock');
+  await freePlay(page);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await page.keyboard.press('End');
+  const canvas = page.getByTestId('graph-canvas');
+  await expect(canvas.locator('[data-tone="cycle"]')).toHaveCount(4);
+  await simulateDeuteranopia(page);
+
+  const shot = await canvas.screenshot({
+    path: testInfo.outputPath('deadlock-graph-deuteranopia.png'),
+  });
+  await testInfo.attach('deadlock-graph-deuteranopia', {
+    body: shot,
+    contentType: 'image/png',
+  });
+
+  // Request edges are dashed and assignment edges solid: the kind is a shape.
+  const dashes = await canvas.locator('[data-edge]').evaluateAll((edges) =>
+    edges.map((g) => ({
+      kind: g.getAttribute('data-kind'),
+      dashed:
+        !!g.querySelector<SVGPathElement>('path:last-of-type')?.style.strokeDasharray,
+    })),
+  );
+  for (const edge of dashes) expect(edge.dashed).toBe(edge.kind === 'request');
+  // Every cycle edge says "cycle" and is drawn thicker than a plain edge.
+  for (const edge of await canvas.locator('[data-tone="cycle"]').all()) {
+    await expect(edge).toContainText('cycle');
+    const width = await edge
+      .locator('path')
+      .last()
+      .evaluate((p) => Number.parseFloat((p as SVGPathElement).style.strokeWidth));
+    expect(width).toBeGreaterThan(1.5);
   }
 });
