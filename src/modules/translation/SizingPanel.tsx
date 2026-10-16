@@ -4,12 +4,8 @@ import { Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/timeline/ui/Button';
-import {
-  pageTableSizes,
-  SIZING_LIMITS,
-  SIZING_SCHEMA,
-  type SizingInput,
-} from '@/core/vm/sizing';
+import { pageTableSizes, SIZING_LIMITS, type SizingInput } from '@/core/vm/sizing';
+import { SIZING_SCHEMA } from '@/core/vm/sizing.schema';
 
 import { draftKey, issuesAt } from './draft';
 import { Messages, parseNumber, TextField } from './fields';

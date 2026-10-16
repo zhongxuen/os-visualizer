@@ -20,6 +20,7 @@ import { PhaseStepper } from '@/components/timeline/PhaseStepper';
 import { stageMoment, StepCaption } from '@/components/timeline/StepCaption';
 import { formatTimecode, unitIndex } from '@/components/timeline/time';
 import { useProgress } from '@/components/state/useProgress';
+import { shareStateFor } from '@/components/state/shareStateFor';
 import { useShareState } from '@/components/state/useShareState';
 import { Button } from '@/components/timeline/ui/Button';
 import { citations } from '@/core/citations';
@@ -200,7 +201,7 @@ export function DemoClient() {
   const cursor = moment === 'done' ? count : Math.min(index, count);
 
   // The step lives in the URL (`?s=`), through the CPU scheduling branch of the codec.
-  const share = useShareState('sched');
+  const share = useShareState(shareStateFor('sched'));
   const { setState: setShare, linked } = share;
   const seeked = useRef(false);
   useEffect(() => {

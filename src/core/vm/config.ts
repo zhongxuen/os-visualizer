@@ -1,18 +1,18 @@
 /**
  * The address translation input: the machine (address sizes, page size, levels, TLB), the
  * page table as a compact mapping list, the page directory for two levels, and the
- * accesses to run, each with a Zod schema and hard limits.
+ * accesses to run, with hard limits. The Zod schemas and the validator are in
+ * `config.schema.ts`.
  *
  * The limits keep every run small enough that each event carries a full snapshot
  * (00-overview §6.14): at most 40 accesses and 64 listed page-table entries. Pages that
  * are not listed are invalid (`valid = 0`), so a 16-bit address space doesn't need 4096
  * rows to describe.
  *
- * `zod/mini` for the same reason as the share-state codec: the editor validates in the
- * browser, and the full Zod API would cost the route its JS budget.
+ * This file has no Zod, so a page that only shows a run never loads it (docs/UIUX.md
+ * §10.5).
  */
 
-import * as z from 'zod/mini';
 
 /** Bytes per page-table entry and per page-directory entry (OSTEP §18.2 uses 4). */
 export const PTE_BYTES = 4;
@@ -147,46 +147,6 @@ export function geometry(config: VmConfig): Geometry {
   };
 }
 
-function int(min: number, max: number, what: string) {
-  return z
-    .int(`${what} must be a whole number`)
-    .check(
-      z.gte(min, `${what} must be at least ${min}`),
-      z.lte(max, `${what} must be at most ${max}`),
-    );
-}
-
-export const CONFIG_SCHEMA = z.object({
-  vaBits: int(LIMITS.minVaBits, LIMITS.maxVaBits, 'Virtual address bits'),
-  paBits: int(LIMITS.minPaBits, LIMITS.maxPaBits, 'Physical address bits'),
-  pageSize: int(LIMITS.minPageSize, 2 ** (LIMITS.maxVaBits - 1), 'Page size').check(
-    z.refine(isPowerOfTwo, 'Page size must be a power of two'),
-  ),
-  levels: z.union([z.literal(1), z.literal(2)]),
-  tlbSize: int(0, LIMITS.maxTlb, 'TLB size'),
-  tlbPolicy: z.enum(['lru', 'fifo']),
-  ptbr: int(0, 2 ** LIMITS.maxPaBits - 1, 'PTBR'),
-});
-
-const PROT_SCHEMA = z.enum(['r', 'rw']);
-
-export const PAGE_SCHEMA = z.object({
-  vpn: int(0, 2 ** LIMITS.maxVaBits - 1, 'VPN'),
-  valid: z.boolean(),
-  pfn: int(0, 2 ** LIMITS.maxPaBits - 1, 'PFN'),
-  prot: PROT_SCHEMA,
-});
-
-export const DIRECTORY_SCHEMA = z.object({
-  index: int(0, 2 ** LIMITS.maxVaBits - 1, 'Directory index'),
-  pfn: int(0, 2 ** LIMITS.maxPaBits - 1, 'PFN'),
-});
-
-export const ACCESS_SCHEMA = z.object({
-  va: int(0, 2 ** LIMITS.maxVaBits - 1, 'Virtual address'),
-  op: z.enum(['read', 'write']),
-});
-
 export interface ValidationIssue {
   /** Where the problem is, e.g. `['pages', 2, 'pfn']`. */
   path: (string | number)[];
@@ -286,45 +246,6 @@ export function inputIssues(input: VmInput): ValidationIssue[] {
   return issues;
 }
 
-export const INPUT_SHAPE = {
-  config: CONFIG_SCHEMA,
-  pages: z.array(PAGE_SCHEMA).check(z.maxLength(LIMITS.maxPages)),
-  directory: z.array(DIRECTORY_SCHEMA).check(z.maxLength(LIMITS.maxPages)),
-  accesses: z
-    .array(ACCESS_SCHEMA)
-    .check(
-      z.minLength(LIMITS.minAccesses, 'Add at least one access'),
-      z.maxLength(LIMITS.maxAccesses, `At most ${LIMITS.maxAccesses} accesses`),
-    ),
-};
-
-/** Adds the cross-field issues of `inputIssues` to a schema whose output is a `VmInput`. */
-export function crossChecked<T extends VmInput>() {
-  return z.superRefine<T>((value, ctx) => {
-    for (const issue of inputIssues(value)) {
-      ctx.addIssue({
-        code: 'custom',
-        message: issue.message,
-        path: issue.path,
-        input: value,
-      });
-    }
-  });
-}
-
-export const INPUT_SCHEMA = z.object(INPUT_SHAPE).check(crossChecked());
-
 export type Validation<T> =
   { ok: true; value: T } | { ok: false; issues: ValidationIssue[] };
 
-export function validateVmInput(input: unknown): Validation<VmInput> {
-  const parsed = (INPUT_SCHEMA as unknown as z.ZodMiniType<VmInput>).safeParse(input);
-  if (parsed.success) return { ok: true, value: parsed.data };
-  return {
-    ok: false,
-    issues: parsed.error.issues.map((issue) => ({
-      path: issue.path.map((part) => (typeof part === 'number' ? part : String(part))),
-      message: issue.message,
-    })),
-  };
-}

@@ -16,7 +16,7 @@ import { Button } from '@/components/timeline/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { compare, COMPARE_PRESETS, type CompareRow, whyLine } from '@/core/sched/compare';
 import { metricsFrom, type RunMetrics } from '@/core/sched/metrics';
-import { COMPARE_SHARE_STATE } from '@/core/sched/state';
+import { COMPARE_SHARE } from '@/core/sched/share';
 import type { Policy, Workload } from '@/core/sched/workload';
 import { cn } from '@/lib/cn';
 import {
@@ -27,12 +27,10 @@ import {
   SelectField,
   toGanttSegments,
   useTickRun,
-  WorkloadEditor,
 } from '@/modules/scheduling';
 
 import { CompareMetrics } from './CompareMetrics';
 import { activeExample, LESSON, LESSON_CHECKPOINTS, LESSON_EXAMPLES } from './lesson';
-import { PolicyColumns } from './PolicyColumns';
 import { PolicyMiniMap } from './PolicyMiniMap';
 import { resultSentence, tryNextFor } from './summary';
 import { DROP, useArrival } from './useArrival';
@@ -52,6 +50,11 @@ import { DROP, useArrival } from './useArrival';
 const GuidedLesson = dynamic(() => import('./GuidedLesson'), {
   ssr: false,
   loading: () => <p className="text-fg-muted text-small">Loading the lesson…</p>,
+});
+/** Sandbox's editors: their own chunk, loaded the first time the editor is opened. */
+const SandboxEditor = dynamic(() => import('./SandboxEditor'), {
+  ssr: false,
+  loading: () => <p className="text-fg-muted text-small min-h-96">Loading the editor…</p>,
 });
 
 /** A sideways swipe of at least this many pixels changes the policy shown. */
@@ -152,7 +155,7 @@ function Legend() {
 }
 
 export function CompareView() {
-  const share = useShareState(COMPARE_SHARE_STATE);
+  const share = useShareState(COMPARE_SHARE);
   const { state, setState, ready } = share;
   const { workload, policies } = state.input;
   const [mode, setMode] = useState<ModuleMode>('walkthrough');
@@ -216,7 +219,7 @@ export function CompareView() {
   const lessonAuto = useLessonAutoLoad({
     ready,
     linked: share.linked,
-    defaults: COMPARE_SHARE_STATE.defaults,
+    defaults: COMPARE_SHARE.defaults,
     input: state.input,
   });
   const loadExample = (id: string) => {
@@ -274,34 +277,15 @@ export function CompareView() {
       </button>
 
       <div id="compare-editor" hidden={!editing} className="flex flex-col gap-4">
-        <Panel title="Policies">
-          <p className="text-caption text-fg-muted">
-            Each column runs the same workload under its own policy. Round robin gives
-            each process a <Term id="quantum">quantum</Term> of CPU time; a preemptive
-            policy can <Term id="preempt">preempt</Term> the running process.
-          </p>
-          <PolicyColumns
-            key={`policies-${loads}-${ready ? 1 : 0}`}
+        {editing ? (
+          <SandboxEditor
+            workload={workload}
             policies={policies}
             names={result.names}
-            onChange={(nextPolicies) => setInput({ workload, policies: nextPolicies })}
+            editorKey={`${loads}-${ready ? 1 : 0}`}
+            onChange={setInput}
           />
-        </Panel>
-        <Panel title="Workload">
-          <p className="text-caption text-fg-muted">
-            Each process has an <Term id="arrival">arrival</Term> time and a list of
-            bursts: <Term id="cpu-burst">CPU bursts</Term> (solid) alternating with{' '}
-            <Term id="io-burst">I/O bursts</Term> (dashed).
-          </p>
-          <WorkloadEditor
-            key={`workload-${loads}-${ready ? 1 : 0}`}
-            workload={workload}
-            showPriority={policies.some((p) => p.kind === 'priority')}
-            burstBuilder
-            disclose
-            onChange={(nextWorkload) => setInput({ workload: nextWorkload, policies })}
-          />
-        </Panel>
+        ) : null}
       </div>
     </div>
   );

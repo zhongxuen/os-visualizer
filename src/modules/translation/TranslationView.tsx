@@ -27,7 +27,7 @@ import type { VmCounters, VmEvent, VmStep } from '@/core/vm/events';
 import { DEFAULT_PRESET, VM_PRESETS, regionsFor, type VmPreset } from '@/core/vm/presets';
 import { VM_RULES } from '@/core/vm/rules';
 import type { SizingInput } from '@/core/vm/sizing';
-import { VM_SHARE_STATE } from '@/core/vm/state';
+import { VM_SHARE } from '@/core/vm/share';
 import { runVm } from '@/core/vm/translate';
 import { cn } from '@/lib/cn';
 
@@ -215,7 +215,7 @@ function Counters({
 }
 
 export function TranslationView() {
-  const share = useShareState(VM_SHARE_STATE);
+  const share = useShareState(VM_SHARE);
   const { state, setState, ready } = share;
   const input = state.input as RunInput;
   const [mode, setMode] = useState<ModuleMode>('walkthrough');
@@ -301,7 +301,7 @@ export function TranslationView() {
   const lessonAuto = useLessonAutoLoad({
     ready,
     linked: share.linked,
-    defaults: VM_SHARE_STATE.defaults,
+    defaults: VM_SHARE.defaults,
     input: state.input,
   });
   const loadExample = (id: string) => {

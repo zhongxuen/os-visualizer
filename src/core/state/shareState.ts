@@ -45,6 +45,35 @@ export function encodeShareState<S extends ShareStateBase>(
   return encoded.length > MAX_SHARE_STATE_LENGTH ? null : encoded;
 }
 
+/** JSON with every object's keys sorted, so equal states give equal strings. */
+function canonicalJson(value: unknown): string {
+  return JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0,
+          ),
+        )
+      : v,
+  );
+}
+
+/**
+ * Encode a state the page built itself, without the schema: what the address bar is kept
+ * in step with as the learner plays and edits. Keys are sorted, so two equal states give
+ * the same link whatever order their objects were built in. Returns `null` past
+ * `MAX_SHARE_STATE_LENGTH`.
+ *
+ * No validation: the state came from the module's own validated editors and presets
+ * (`state.test.ts` checks every preset round-trips), and decoding a link is always
+ * validated. Skipping it here is what lets a page keep its link up to date without
+ * loading Zod (docs/UIUX.md §10.5).
+ */
+export function encodeShareJson(state: ShareStateBase): string | null {
+  const encoded = base64urlEncode(encoder.encode(canonicalJson(state)));
+  return encoded.length > MAX_SHARE_STATE_LENGTH ? null : encoded;
+}
+
 /** Decode a `?s=` value for one module. Never throws; falls back to the defaults. */
 export function decodeShareState<S extends ShareStateBase>(
   definition: ModuleShareState<S>,

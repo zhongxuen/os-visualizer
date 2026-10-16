@@ -2,7 +2,6 @@ export {
   geometry,
   LIMITS,
   PTE_BYTES,
-  validateVmInput,
   type Access,
   type DirectoryEntry,
   type Geometry,
@@ -48,7 +47,6 @@ export { VM_RULES, type VmRule } from './rules';
 export {
   pageTableSizes,
   SIZING_LIMITS,
-  validateSizing,
   type Region,
   type SizingInput,
   type SizingResult,
@@ -56,3 +54,5 @@ export {
 export { VM_SHARE_STATE } from './state';
 export { createTlb, tlbOccupancy, type Tlb, type TlbEntry } from './tlb';
 export { bin, runVm, translate, type VmRun } from './translate';
+export { validateVmInput } from './config.schema';
+export { validateSizing } from './sizing.schema';

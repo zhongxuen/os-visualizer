@@ -9,7 +9,8 @@ import { runMetrics } from '@/core/sched/metrics';
 import { presetById, SCHED_PRESETS } from '@/core/sched/presets';
 import { SCHED_RULES } from '@/core/sched/rules';
 import { schedule } from '@/core/sched/schedule';
-import { validatePolicy, type Policy, type Workload } from '@/core/sched/workload';
+import type { Policy, Workload } from '@/core/sched/workload';
+import { validatePolicy } from '@/core/sched/workload.schema';
 
 import { finalSegments, snapshotAt } from './adapters';
 import {
@@ -303,6 +304,11 @@ describe('SchedulingView, U3.1', { timeout: 60_000 }, () => {
   it('links a process across editor, Gantt, queues and metrics, and brackets it (S3, S4)', async () => {
     const user = userEvent.setup();
     const { container } = render(<SchedulingView />);
+    // The editor is folded in Guided and loads on first open.
+    await user.click(
+      screen.getByRole('button', { name: 'Edit the policy and workload' }),
+    );
+    await screen.findByRole('combobox', { name: 'Policy' });
     await act(async () => {
       await user.keyboard('{End}');
     });
@@ -360,12 +366,15 @@ describe('SchedulingView, U3.1', { timeout: 60_000 }, () => {
     renderLinked(<SchedulingView />, SCHED_SHARE_STATE);
 
     const edit = screen.getByRole('button', { name: 'Edit the policy and workload' });
-    expect(edit).toHaveAttribute('aria-expanded', 'true');
-    await user.click(edit);
+    // Folded in Guided, where the lesson chooses the input.
     expect(edit).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('combobox', { name: 'Policy' })).toBeNull();
     await user.click(edit);
-    expect(screen.getByRole('combobox', { name: 'Policy' })).toBeInTheDocument();
+    expect(edit).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByRole('combobox', { name: 'Policy' })).toBeInTheDocument();
+    await user.click(edit);
+    expect(edit).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('combobox', { name: 'Policy' })).toBeNull();
 
     // The end-of-run card offers SRTF on the same workload, and loads it.
     await act(async () => {

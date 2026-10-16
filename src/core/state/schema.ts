@@ -45,6 +45,21 @@ export interface ModuleShareState<S extends ShareStateBase = ShareStateBase> {
 }
 
 /**
+ * A module's share state without its schema: the key, the version and the defaults,
+ * which is all a page needs to render, and `load()`, which brings the full definition
+ * (and Zod) when a link has to be decoded. Each module declares one in
+ * `src/core/<name>/share.ts`, beside the `defineShareState` call in `state.ts` that
+ * `load()` imports on demand, so a module route's first load carries no schema
+ * (docs/UIUX.md §10.5). `state.test.ts` checks that the two agree.
+ */
+export interface ShareStateSource<S extends ShareStateBase = ShareStateBase> {
+  readonly m: S['m'];
+  readonly v: number;
+  readonly defaults: S;
+  load(): Promise<ModuleShareState<S>>;
+}
+
+/**
  * Declare a module's share state.
  *
  * Throws if `defaults` don't satisfy the schema: an authoring mistake, caught when the

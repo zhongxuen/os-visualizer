@@ -35,8 +35,6 @@ export {
   policyName,
   totalCpu,
   totalIo,
-  validatePolicy,
-  validateWorkload,
   type MlfqLevel,
   type Policy,
   type PolicyKind,
@@ -44,3 +42,4 @@ export {
   type ValidationIssue,
   type Workload,
 } from './workload';
+export { validatePolicy, validateWorkload } from './workload.schema';

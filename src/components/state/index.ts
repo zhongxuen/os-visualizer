@@ -12,8 +12,8 @@ export {
   writeProgress,
   type UseProgress,
 } from './useProgress';
+export { shareStateFor } from './shareStateFor';
 export {
-  shareStateFor,
   useShareState,
   type UseShareState,
   type UseShareStateOptions,

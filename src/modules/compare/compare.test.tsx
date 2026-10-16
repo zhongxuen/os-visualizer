@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StepTransitionProvider } from '@/components/motion/useStepTransition';
 import { expectNoAxeViolations } from '@/components/testing/axe';
 import { renderLinked } from '@/components/testing/linked';
+import { COMPARE_SHARE } from '@/core/sched/share';
 import { COMPARE_SHARE_STATE } from '@/core/sched/state';
 import { compare, COMPARE_PRESETS, whyLine } from '@/core/sched/compare';
 
@@ -18,15 +19,28 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/');
 });
 
+/**
+ * Every call follows a fresh `render`, which opens in Guided: the lesson (its own chunk)
+ * loads its first example once it arrives. Wait for that, or it can land between picking
+ * the preset and loading it, and "Load preset" then loads the lesson's example.
+ */
 async function loadPreset(user: UserEvent, id: string) {
+  await screen.findByText(/^Loaded example:/, {}, { timeout: 10_000 });
   await user.selectOptions(screen.getByLabelText('Preset'), id);
   await user.click(screen.getByRole('button', { name: 'Load preset' }));
 }
 
 async function openEditor(user: UserEvent) {
+  // A `?s=` link is decoded once its schema (its own chunk) loads, and the editor starts
+  // again when it is; let that happen first, or a click can land on the old editor.
+  await act(async () => {
+    await COMPARE_SHARE.load();
+  });
   await user.click(
     screen.getByRole('button', { name: 'Edit the policies and workload' }),
   );
+  // The editor is its own chunk, loaded on first open.
+  await screen.findByRole('button', { name: 'Add a policy' });
 }
 
 /** The marks on each body row of the side-by-side table, as `rowMarks` gives them. */

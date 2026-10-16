@@ -13,7 +13,8 @@ import { parsePrefs, sharedPrefsStore } from '@/components/shell/prefs';
 
 import { migrateProgress, parseProgress, PROGRESS_KEY } from './progress';
 import { useProgress } from './useProgress';
-import { shareStateFor, useShareState } from './useShareState';
+import { shareStateFor } from './shareStateFor';
+import { useShareState } from './useShareState';
 
 describe('progress migration', () => {
   it('reads v1 field by field, keeping prefs untouched', () => {
@@ -158,7 +159,7 @@ describe('useShareState', () => {
 
   it('keeps the URL clean at the defaults and falls back on a bad link', () => {
     window.history.replaceState(null, '', `/demo?${SHARE_PARAM}=not-valid`);
-    const { result } = renderHook(() => useShareState('sched'));
+    const { result } = renderHook(() => useShareState(shareStateFor('sched')));
     expect(result.current.state).toEqual(shareStateFor('sched').defaults);
     act(() => vi.advanceTimersByTime(300));
     expect(window.location.search).toBe('');

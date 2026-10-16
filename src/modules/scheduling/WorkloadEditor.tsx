@@ -8,10 +8,10 @@ import { Button } from '@/components/timeline/ui/Button';
 import {
   LIMITS,
   pidNumber,
-  validateWorkload,
   type ValidationIssue,
   type Workload,
 } from '@/core/sched/workload';
+import { validateWorkload } from '@/core/sched/workload.schema';
 import { cn } from '@/lib/cn';
 
 import { INPUT, MoreOptions, NumberField } from './fields';

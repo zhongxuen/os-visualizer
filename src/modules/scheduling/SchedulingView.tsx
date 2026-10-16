@@ -35,15 +35,8 @@ import { metricsFrom } from '@/core/sched/metrics';
 import { SCHED_PRESETS } from '@/core/sched/presets';
 import { rulesFor } from '@/core/sched/rules';
 import { schedule } from '@/core/sched/schedule';
-import { SCHED_SHARE_STATE } from '@/core/sched/state';
-import {
-  pidNumber,
-  policyName,
-  validatePolicy,
-  validateWorkload,
-  type Policy,
-  type Workload,
-} from '@/core/sched/workload';
+import { SCHED_SHARE } from '@/core/sched/share';
+import { pidNumber, policyName, type Policy, type Workload } from '@/core/sched/workload';
 import { cn } from '@/lib/cn';
 
 import {
@@ -68,10 +61,8 @@ import {
 import { Panel, SelectField } from './fields';
 import { LESSON, LESSON_CHECKPOINTS, LESSON_EXAMPLES } from './lesson';
 import { MetricDefinitions } from './MetricDefinitions';
-import { PolicyPicker } from './PolicyPicker';
 import { isZoomKey, MODULE_SHORTCUTS } from './shortcuts';
 import { useTickRun } from './useTickRun';
-import { WorkloadEditor } from './WorkloadEditor';
 
 const CITATIONS = createRegistry([schedCitations]);
 /** Guided mode's lesson: client-only, its own chunk, out of first-load JS. */
@@ -79,6 +70,13 @@ const GuidedLesson = dynamic(() => import('./GuidedLesson'), {
   ssr: false,
   loading: () => <p className="text-fg-muted text-small">Loading the lesson…</p>,
 });
+/** Sandbox's editors: their own chunk, loaded the first time the editor is opened. */
+const SandboxEditor = dynamic(() => import('./SandboxEditor'), {
+  ssr: false,
+  loading: () => <p className="text-fg-muted text-small min-h-96">Loading the editor…</p>,
+});
+/** The saved list: its own chunk, loaded only when something is saved. */
+const SavedWorkloads = dynamic(() => import('./SavedWorkloads'), { ssr: false });
 const SAVE_KEY = 'sched';
 /** S6: one tick at this many pixels when zoomed in. */
 const ZOOM_PX = 16;
@@ -86,14 +84,6 @@ const ZOOM_PX = 16;
 interface SavedRun {
   workload: Workload;
   policy: Policy;
-}
-
-function asSaved(value: unknown): SavedRun | null {
-  if (typeof value !== 'object' || value === null) return null;
-  const { workload, policy } = value as Record<string, unknown>;
-  const w = validateWorkload(workload);
-  const p = validatePolicy(policy);
-  return w.ok && p.ok ? { workload: w.value, policy: p.value } : null;
 }
 
 /* --- Small parts ----------------------------------------------------------- */
@@ -334,14 +324,17 @@ function Legend({ marks, mlfq }: { marks: boolean; mlfq: boolean }) {
 /* --- The view -------------------------------------------------------------- */
 
 export function SchedulingView() {
-  const share = useShareState(SCHED_SHARE_STATE);
+  const share = useShareState(SCHED_SHARE);
   const { state, setState, ready } = share;
   const { workload, policy } = state.input;
   const [mode, setMode] = useState<ModuleMode>('walkthrough');
   const [presetId, setPresetId] = useState(SCHED_PRESETS[1]!.id);
   const [loads, setLoads] = useState(0);
   const [status, setStatus] = useState('');
-  const [editing, setEditing] = useState(true);
+  // The editor is open from the start in Sandbox and folded in Guided, where the lesson
+  // chooses the input; once toggled, it stays as the learner left it.
+  const [editingChoice, setEditing] = useState<boolean | null>(null);
+  const editing = editingChoice ?? mode === 'free';
   const [zoom, setZoom] = useState<'fit' | 'tick'>('fit');
   const [hoverPid, setHoverPid] = useState<string | null>(null);
   const [bracketPid, setBracketPid] = useState<string | null>(null);
@@ -435,10 +428,7 @@ export function SchedulingView() {
     [workload, policy],
   );
 
-  const saved = progress
-    .savedFor(SAVE_KEY)
-    .map((value, index) => ({ value: asSaved(value), index }))
-    .filter((entry): entry is { value: SavedRun; index: number } => entry.value !== null);
+  const saved = progress.savedFor(SAVE_KEY);
 
   const presets = presetSelect(
     SCHED_PRESETS.map((p) => ({ value: p.id, label: p.title })),
@@ -456,7 +446,7 @@ export function SchedulingView() {
   const lessonAuto = useLessonAutoLoad({
     ready,
     linked: share.linked,
-    defaults: SCHED_SHARE_STATE.defaults,
+    defaults: SCHED_SHARE.defaults,
     input: state.input,
     saved: saved.length,
   });
@@ -508,7 +498,7 @@ export function SchedulingView() {
         type="button"
         aria-expanded={editing}
         aria-controls="sched-editor"
-        onClick={() => setEditing((on) => !on)}
+        onClick={() => setEditing(!editing)}
         className="border-border bg-surface-raised text-small hover:bg-surface-overlay focus-visible:outline-focus flex items-center justify-between rounded-lg border px-4 py-2 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         Edit the policy and workload
@@ -519,36 +509,16 @@ export function SchedulingView() {
       </button>
 
       <div id="sched-editor" hidden={!editing} className="flex flex-col gap-4">
-        <Panel title="Policy">
-          <p className="text-caption text-fg-muted">
-            Round robin gives each process a <Term id="quantum">quantum</Term> of CPU
-            time; a preemptive policy can <Term id="preempt">preempt</Term> the running
-            process.
-          </p>
-          <PolicyPicker
-            key={`policy-${loads}-${ready ? 1 : 0}`}
-            policy={policy}
-            disclose
-            onChange={(nextPolicy) => setInput({ workload, policy: nextPolicy })}
-          />
-        </Panel>
-        <Panel title="Workload">
-          <p className="text-caption text-fg-muted">
-            Each process has an <Term id="arrival">arrival</Term> time and a list of
-            bursts: <Term id="cpu-burst">CPU bursts</Term> (solid) alternating with{' '}
-            <Term id="io-burst">I/O bursts</Term> (dashed).
-          </p>
-          <WorkloadEditor
-            key={`workload-${loads}-${ready ? 1 : 0}`}
+        {editing ? (
+          <SandboxEditor
             workload={workload}
-            showPriority={policy.kind === 'priority'}
-            burstBuilder
-            disclose
+            policy={policy}
+            editorKey={`${loads}-${ready ? 1 : 0}`}
             highlightPid={highlight}
             onPidHover={setHoverPid}
-            onChange={(nextWorkload) => setInput({ workload: nextWorkload, policy })}
+            onChange={setInput}
           />
-        </Panel>
+        ) : null}
       </div>
 
       <Panel title="Save in this browser">
@@ -565,30 +535,11 @@ export function SchedulingView() {
           </Button>
         </div>
         {saved.length > 0 ? (
-          <ul aria-label="Saved workloads" className="flex flex-col gap-2">
-            {saved.map(({ value, index }, n) => (
-              <li key={index} className="flex flex-wrap items-center gap-2">
-                <span className="text-small min-w-0 flex-1">
-                  {n + 1}. {value.workload.processes.length} processes,{' '}
-                  {policyName(value.policy)}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => load(value, `Loaded saved workload ${n + 1}.`)}
-                >
-                  Load<span className="sr-only"> saved workload {n + 1}</span>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => progress.removeSaved(SAVE_KEY, index)}
-                >
-                  Delete<span className="sr-only"> saved workload {n + 1}</span>
-                </Button>
-              </li>
-            ))}
-          </ul>
+          <SavedWorkloads
+            entries={saved}
+            onLoad={(value, n) => load(value, `Loaded saved workload ${n}.`)}
+            onDelete={(index) => progress.removeSaved(SAVE_KEY, index)}
+          />
         ) : null}
       </Panel>
     </div>

@@ -21,7 +21,8 @@ import {
   vaHighlight,
   vaParts,
 } from './adapters';
-import { autoDirectory, toDraft, validateDraft } from './draft';
+import { autoDirectory, toDraft } from './draft';
+import { validateDraft } from './draft.schema';
 import { parseNumber } from './fields';
 import { PageTableView } from './PageTableView';
 import { formatBytes } from './SizingPanel';

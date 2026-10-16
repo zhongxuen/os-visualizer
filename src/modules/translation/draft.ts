@@ -1,14 +1,14 @@
 /**
  * The editors' working copy of a `VmInput`. Fields keep what you type, as text; every
- * change is validated with the core's schema, and only a valid input leaves the editor.
- * Until then the schema's messages show next to the field they are about.
+ * change is validated with the core's schema (`validateDraft`, in the editor's own chunk:
+ * `draft.schema.ts`), and only a valid input leaves the editor. Until then the schema's
+ * messages show next to the field they are about.
  */
 
 import {
   geometry,
   isPowerOfTwo,
   LIMITS,
-  validateVmInput,
   type Levels,
   type Prot,
   type TlbPolicy,
@@ -112,10 +112,6 @@ export function fromDraft(draft: VmDraft): unknown {
         : [],
     accesses: parseAccesses(draft.accesses),
   };
-}
-
-export function validateDraft(draft: VmDraft) {
-  return validateVmInput(fromDraft(draft));
 }
 
 /** Unique messages whose path matches. */

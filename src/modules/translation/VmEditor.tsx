@@ -14,12 +14,12 @@ import {
   issuesAt,
   nextVpn,
   toDraft,
-  validateDraft,
   type ConfigDraft,
   type DirectoryDraft,
   type PageDraft,
   type VmDraft,
 } from './draft';
+import { validateDraft } from './draft.schema';
 import { INPUT, Messages, Panel, SelectField, TextField } from './fields';
 import { humanIssues } from './messages';
 
